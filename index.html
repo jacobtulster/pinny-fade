@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pinny Fade — MLB / NFL / WNBA</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="brand">
+        <h1>Pinny Fade</h1>
+        <p class="tagline">Fade high public ratios when Bet105 (Pinny clone) disagrees · MLB + NFL + WNBA</p>
+      </div>
+      <div class="controls">
+        <a class="nav-link" href="history.html">History</a>
+        <button type="button" id="exportBtn" class="btn btn-secondary">Export today</button>
+        <button type="button" id="openZcodeBtn" class="btn btn-secondary">Open ZCode tabs</button>
+        <button type="button" id="refreshBtn" class="btn">Refresh</button>
+      </div>
+    </header>
+
+    <section class="status-bar" id="statusBar" aria-live="polite">
+      <span id="statusText">Waiting for Tampermonkey companion…</span>
+      <span id="statusMeta" class="meta"></span>
+    </section>
+
+    <section class="legend">
+      <div class="legend-left">
+        <span class="pill not-respected">Public not respected</span>
+        <span class="pill take">Take</span>
+        <span class="pill ratio-hi">≥5.0x → other</span>
+        <span class="pill ratio-mid">2–4.99x → other</span>
+        <span class="pill ratio-lo">&lt;1.0x fav ≤-1¢</span>
+        <span class="hint">Public border: thick = ML tickets · thin = ML/spread tickets-diff shade</span>
+      </div>
+      <button type="button" id="defaultSortBtn" class="btn btn-secondary btn-default-sort">Reset table to defaults</button>
+    </section>
+
+    <div class="table-wrap">
+      <table class="slate" id="slateTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Sport</th>
+            <th class="sortable" data-sort="date" title="Sort: soonest first · started last">Date</th>
+            <th>Matchup</th>
+            <th>Public</th>
+            <th>Fav×</th>
+            <th>Take</th>
+            <th class="sortable" data-sort="move" title="Sort: biggest ¢/pt move first">Open → Now</th>
+            <th>Toward</th>
+            <th>Signal</th>
+          </tr>
+        </thead>
+        <tbody id="slateBody">
+          <tr class="empty">
+            <td colspan="10">No slate yet. Click <b>Open ZCode tabs</b> (opens BMR odds-scores + ZCode; stay logged in). Keep this page open with userscript v1.6.0+.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="footer">
+      <p>Personal use · Install userscript v1.6.1+ · <a href="history.html">History</a> · Not affiliated with ZCode or Pinnacle</p>
+    </footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

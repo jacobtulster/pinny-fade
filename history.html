@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pinny Fade — History</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="brand">
+        <h1>Pinny Fade History</h1>
+        <p class="tagline">Daily archives · Take pick graded W / P / L after finals</p>
+      </div>
+      <div class="controls">
+        <a class="btn btn-secondary" href="index.html">Live slate</a>
+        <label class="date-pick">
+          <span>Day</span>
+          <select id="daySelect" aria-label="Archive date"></select>
+        </label>
+      </div>
+    </header>
+
+    <section class="status-bar" id="statusBar" aria-live="polite">
+      <span id="statusText">Loading archives…</span>
+      <span id="statusMeta" class="meta"></span>
+    </section>
+
+    <section class="legend">
+      <div class="legend-left">
+        <span class="pill result-w">W — Take won</span>
+        <span class="pill result-p">P — Push</span>
+        <span class="pill result-l">L — Take lost</span>
+        <span class="pill result-pending">pending — awaiting final</span>
+        <span class="hint">Last export of each NY calendar day is the permanent record</span>
+      </div>
+    </section>
+
+    <div class="table-wrap">
+      <table class="slate" id="histTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Sport</th>
+            <th>Matchup</th>
+            <th>Public</th>
+            <th>Fav×</th>
+            <th>Take</th>
+            <th>Open → Now</th>
+            <th>Toward</th>
+            <th>Signal</th>
+            <th>Score</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="histBody">
+          <tr class="empty">
+            <td colspan="11">No archive days yet. Keep the live dashboard open with userscript v1.6.0+ and GitHub backup configured.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="footer">
+      <p>Personal use · History JSON under <code>history/</code> · Not affiliated with ZCode or Pinnacle</p>
+    </footer>
+  </div>
+  <script src="history.js"></script>
+</body>
+</html>
