@@ -62,8 +62,14 @@
   function fmtSpreadNum(n) {
     if (n == null || !Number.isFinite(n)) return '—';
     if (n === 0) return 'PK';
-    const s = Number.isInteger(n) ? String(n) : String(n);
-    return n > 0 ? '+' + s : s;
+    const abs = Math.abs(n);
+    const half = Math.abs(abs - Math.floor(abs) - 0.5) < 1e-9;
+    const core = half
+      ? `${Math.floor(abs)}½`
+      : Number.isInteger(n)
+        ? String(abs)
+        : String(abs);
+    return (n > 0 ? '+' : '-') + core;
   }
 
   /** e.g. -6.5-110 */
@@ -521,10 +527,10 @@
     if (!slamBody) return;
     const slams = ((payload && payload.slams) || [])
       .slice()
-      .sort((a, b) => (b.slamTime || 0) - (a.slamTime || 0));
+      .sort((a, b) => (a.slamTime || 0) - (b.slamTime || 0));
     if (!slams.length) {
       slamBody.innerHTML =
-        '<tr class="empty"><td colspan="7">No coordinated slams yet. Keep the dashboard open with userscript v1.7.0+.</td></tr>';
+        '<tr class="empty"><td colspan="7">No coordinated slams yet. Keep the dashboard open with userscript v1.7.1+.</td></tr>';
       return;
     }
     slamBody.innerHTML = slams
@@ -573,7 +579,7 @@
         'Click Open ZCode tabs (logged in) · keep dashboard open with userscript'
       );
       slateBody.innerHTML =
-        '<tr class="empty"><td colspan="11">No slate yet. Click Open ZCode tabs while logged in, keep this tab open with the userscript installed.</td></tr>';
+        '<tr class="empty"><td colspan="10">No slate yet. Click Open ZCode tabs while logged in, keep this tab open with the userscript installed.</td></tr>';
       if (slamBody) {
         slamBody.innerHTML =
           '<tr class="empty"><td colspan="7">No coordinated slams yet.</td></tr>';
@@ -655,18 +661,22 @@
               : 'sport-badge';
         const scoreCls =
           g.scoreStatus === 'live'
-            ? 'score-cell live'
+            ? 'score-under live'
             : g.scoreStatus === 'final'
-              ? 'score-cell final'
-              : 'score-cell';
+              ? 'score-under final'
+              : 'score-under';
+        const scoreTxt = fmtScoreCell(g);
 
         return (
           `<tr class="${rowClass}">` +
-          `<td>${idx + 1}</td>` +
+          `<td class="num-cell"><span class="row-num">${idx + 1}</span>` +
+          (scoreTxt && scoreTxt !== '—'
+            ? `<span class="${scoreCls}">${escapeHtml(scoreTxt)}</span>`
+            : '') +
+          `</td>` +
           `<td><span class="${sportCls}">${escapeHtml(sport)}</span></td>` +
           `<td class="gdate">${g.gdate ? escapeHtml(fmtGdate(g.gdate)) : '—'}</td>` +
           `<td class="matchup">${teamHtml(g.away, hl)} @ ${teamHtml(g.home, hl)}</td>` +
-          `<td class="${scoreCls}">${escapeHtml(fmtScoreCell(g))}</td>` +
           `<td class="public-cell"><span class="public-box${publicBorderClass(
             g
           )}">${teamHtml(g.publicTeam, hl)}${

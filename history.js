@@ -32,8 +32,14 @@
   function fmtSpreadNum(n) {
     if (n == null || !Number.isFinite(n)) return '—';
     if (n === 0) return 'PK';
-    const s = Number.isInteger(n) ? String(n) : String(n);
-    return n > 0 ? '+' + s : s;
+    const abs = Math.abs(n);
+    const half = Math.abs(abs - Math.floor(abs) - 0.5) < 1e-9;
+    const core = half
+      ? `${Math.floor(abs)}½`
+      : Number.isInteger(n)
+        ? String(abs)
+        : String(abs);
+    return (n > 0 ? '+' : '-') + core;
   }
 
   function fmtSpreadSide(spread, juice) {
@@ -140,7 +146,7 @@
     if (!slamBody) return;
     const slams = ((payload && payload.slams) || [])
       .slice()
-      .sort((a, b) => (b.slamTime || 0) - (a.slamTime || 0));
+      .sort((a, b) => (a.slamTime || 0) - (b.slamTime || 0));
     if (!slams.length) {
       slamBody.innerHTML =
         '<tr class="empty"><td colspan="7">No slams in this archive.</td></tr>';

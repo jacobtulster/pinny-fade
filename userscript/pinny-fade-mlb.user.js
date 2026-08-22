@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pinny Fade — ZCode + Bet105 (MLB/NFL/WNBA)
 // @namespace    https://github.com/local/pinny-fade
-// @version      1.7.0
+// @version      1.7.1
 // @description  Scrape ZCode LR; Bet105 open→current; live scores; multi-book slam tracker; GitHub history
 // @author       You
 // @match        https://zcodesystem.com/linereversals.php*
@@ -69,6 +69,8 @@
     { name: 'BetOnline', paid: 8 },
     { name: 'Bovada', paid: 9 },
   ];
+  const SLAM_CURSOR_KEY = 'pinnyFadeSlamCursor';
+  const SLAM_BATCH = 16;
   const SLAM_WINDOW_MS = 2 * 60 * 1000;
   const SLAM_MIN_CENTS = 6;
   const SLAM_MIN_SPREAD = 0.5;
@@ -1615,7 +1617,7 @@
 
     const deduped = dedupeExactGames(games).map((g) => attachScoreToGame(g));
     const slams = (GM_getValue(SLAMS_KEY, []) || []).slice().sort((a, b) => {
-      return (b.slamTime || 0) - (a.slamTime || 0);
+      return (a.slamTime || 0) - (b.slamTime || 0);
     });
 
     return {
@@ -2018,7 +2020,7 @@
     });
     return Object.keys(byKey)
       .map((k) => byKey[k])
-      .sort((a, b) => (b.slamTime || 0) - (a.slamTime || 0));
+      .sort((a, b) => (a.slamTime || 0) - (b.slamTime || 0));
   }
 
   function takeIsAway(g) {
@@ -2360,13 +2362,30 @@
   }
 
   function extractBookMoves(history, market, awayPartid, homePartid, awayName, homeName) {
-    const rows = (history || [])
+    const rowsRaw = (history || [])
       .map((h) => ({
         ts: historyTimMs(h.tim),
         parts: parseHistoryLinesPayload(h.lines),
       }))
       .filter((r) => r.ts != null)
       .sort((a, b) => a.ts - b.ts);
+
+    // Forward-fill each side so one-sided ticks still yield a full A/H pair
+    let lastA = null;
+    let lastH = null;
+    const rows = [];
+    rowsRaw.forEach((r) => {
+      if (r.parts[awayPartid]) lastA = r.parts[awayPartid];
+      if (r.parts[homePartid]) lastH = r.parts[homePartid];
+      if (!lastA || !lastH) return;
+      rows.push({
+        ts: r.ts,
+        parts: {
+          [awayPartid]: lastA,
+          [homePartid]: lastH,
+        },
+      });
+    });
 
     const moves = [];
     for (let i = 1; i < rows.length; i++) {
@@ -2465,6 +2484,38 @@
     return moves;
   }
 
+  function pickSlamBatch(candidates) {
+    if (!candidates.length) return [];
+    // Round-robin across sports so NFL/WNBA aren't starved by MLB volume
+    const bySport = {};
+    candidates.forEach((g) => {
+      const s = g.sport || 'MLB';
+      if (!bySport[s]) bySport[s] = [];
+      bySport[s].push(g);
+    });
+    const sports = Object.keys(bySport).sort();
+    const cursor = Number(GM_getValue(SLAM_CURSOR_KEY, 0)) || 0;
+    const indices = {};
+    sports.forEach((s) => {
+      indices[s] = 0;
+    });
+    const out = [];
+    let i = 0;
+    while (out.length < SLAM_BATCH && i < candidates.length * 2) {
+      const sport = sports[(cursor + i) % sports.length];
+      i++;
+      const bucket = bySport[sport];
+      if (!bucket || !bucket.length) continue;
+      const idx = indices[sport] % bucket.length;
+      indices[sport]++;
+      const g = bucket[idx];
+      if (out.some((x) => x === g)) continue;
+      out.push(g);
+    }
+    GM_setValue(SLAM_CURSOR_KEY, cursor + 1);
+    return out;
+  }
+
   function clusterSlamMoves(game, bookMoves) {
     // bookMoves: [{ book, moves: [...] }]
     const flat = [];
@@ -2557,8 +2608,7 @@
       );
       if (!candidates.length) return;
 
-      // Cap per poll to avoid hammering BMR
-      const batch = candidates.slice(0, 12);
+      const batch = pickSlamBatch(candidates);
       const found = [];
 
       for (let gi = 0; gi < batch.length; gi++) {
@@ -2747,5 +2797,5 @@
   runPinnyScheduler();
   runDashboardBridge();
   runOddsScoresWatch();
-  log('Ready (MLB + NFL + WNBA · scores + slams v1.7.0)');
+  log('Ready (MLB + NFL + WNBA · scores + slams v1.7.1)');
 })();

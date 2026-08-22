@@ -593,6 +593,35 @@ body {
   white-space: nowrap;
 }
 
+.num-cell {
+  white-space: nowrap;
+  min-width: 2.5rem;
+}
+
+.num-cell .row-num {
+  display: block;
+  font-weight: 600;
+}
+
+.score-under {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.score-under.live {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.score-under.final {
+  color: var(--muted);
+}
+
 .score-cell.live {
   color: #fbbf24;
   font-weight: 600;
