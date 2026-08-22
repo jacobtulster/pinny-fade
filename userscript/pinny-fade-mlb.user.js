@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Pinny Fade — ZCode + Bet105 (MLB/NFL/WNBA)
 // @namespace    https://github.com/local/pinny-fade
-// @version      1.6.1
-// @description  Scrape ZCode LR; Bet105 open→current; dashboard + GitHub daily history W/P/L
+// @version      1.7.0
+// @description  Scrape ZCode LR; Bet105 open→current; live scores; multi-book slam tracker; GitHub history
 // @author       You
 // @match        https://zcodesystem.com/linereversals.php*
 // @match        https://www.bookmakersreview.com/odds-scores*
@@ -41,6 +41,9 @@
   const PINNY_TS_KEY = 'pinnyFadePinnyTs';
   const PINNY_ERR_KEY = 'pinnyFadePinnyError';
   const SPORTS_KEY = 'pinnyFadeSportsPresent';
+  const SCORE_KEY = 'pinnyFadeScores';
+  const SCORE_TS_KEY = 'pinnyFadeScoresTs';
+  const SLAMS_KEY = 'pinnyFadeSlams';
   const GH_TOKEN_KEY = 'pinnyFadeGithubToken';
   const GH_REPO_KEY = 'pinnyFadeGithubRepo';
   const GH_BRANCH_KEY = 'pinnyFadeGithubBranch';
@@ -59,7 +62,19 @@
   /** MLB moneyline; NFL/WNBA point spread (Bet105) */
   const BMR_MTID_BY_SPORT = { MLB: 83, NFL: 401, WNBA: 401 };
   const MARKET_BY_SPORT = { MLB: 'ml', NFL: 'spread', WNBA: 'spread' };
+  /** BMR paid IDs (PySBR sportsbooks.yaml + Bet105=130) */
+  const SLAM_BOOKS = [
+    { name: 'Bet105', paid: 130 },
+    { name: 'BetCRIS', paid: 10 },
+    { name: 'BetOnline', paid: 8 },
+    { name: 'Bovada', paid: 9 },
+  ];
+  const SLAM_WINDOW_MS = 2 * 60 * 1000;
+  const SLAM_MIN_CENTS = 6;
+  const SLAM_MIN_SPREAD = 0.5;
   const POLL_MS = 60 * 1000;
+  const SCORE_MS = 75 * 1000;
+  const SLAM_MS = 90 * 1000;
   const ZCODE_SCRAPE_MS = 2000;
   const DASHBOARD_PUSH_MS = 1500;
   const BACKUP_MS = 60 * 1000;
@@ -961,6 +976,8 @@
         sport: ev.sport || 'MLB',
         market,
         eventId: ev.eventId,
+        awayPartid: ev.away.partid,
+        homePartid: ev.home.partid,
         home: ev.home.name || ev.home.abbr,
         away: ev.away.name || ev.away.abbr,
         homeAbbr: ev.home.abbr,
@@ -1314,6 +1331,58 @@
     return out;
   }
 
+  function matchScoreToGame(g, scores) {
+    const sport = g.sport || 'MLB';
+    for (let i = 0; i < (scores || []).length; i++) {
+      const f = scores[i];
+      if (f.sport !== sport) continue;
+      const direct =
+        (teamsMatch(g.away, f.away, sport) ||
+          teamsMatch(g.awayAbbr, f.awayAbbr, sport)) &&
+        (teamsMatch(g.home, f.home, sport) ||
+          teamsMatch(g.homeAbbr, f.homeAbbr, sport));
+      const flipped =
+        (teamsMatch(g.away, f.home, sport) ||
+          teamsMatch(g.awayAbbr, f.homeAbbr, sport)) &&
+        (teamsMatch(g.home, f.away, sport) ||
+          teamsMatch(g.homeAbbr, f.awayAbbr, sport));
+      if (direct) {
+        return {
+          scoreAway: f.scoreAway,
+          scoreHome: f.scoreHome,
+          scoreStatus: f.scoreStatus,
+          scoreDetail: f.scoreDetail || null,
+        };
+      }
+      if (flipped) {
+        return {
+          scoreAway: f.scoreHome,
+          scoreHome: f.scoreAway,
+          scoreStatus: f.scoreStatus,
+          scoreDetail: f.scoreDetail || null,
+        };
+      }
+    }
+    return null;
+  }
+
+  function attachScoreToGame(g) {
+    const scores = GM_getValue(SCORE_KEY, []) || [];
+    const m = matchScoreToGame(g, scores);
+    if (!m) return g;
+    const out = Object.assign({}, g, {
+      scoreAway: m.scoreAway,
+      scoreHome: m.scoreHome,
+      scoreStatus: m.scoreStatus || null,
+      scoreDetail: m.scoreDetail || null,
+    });
+    if (m.scoreStatus === 'final') {
+      out.finalAway = m.scoreAway;
+      out.finalHome = m.scoreHome;
+    }
+    return out;
+  }
+
   function buildSlate() {
     const zGames = readAllZcodeGames()
       .filter(hasZcodeRatioData)
@@ -1496,6 +1565,17 @@
         sport,
         market,
         gameId: z.gameId,
+        eventId: match ? match.pinny.eventId || null : null,
+        awayPartid: match
+          ? match.flipped
+            ? match.pinny.homePartid
+            : match.pinny.awayPartid
+          : null,
+        homePartid: match
+          ? match.flipped
+            ? match.pinny.awayPartid
+            : match.pinny.homePartid
+          : null,
         away: awayName,
         home: homeName,
         awayAbbr,
@@ -1524,17 +1604,28 @@
         pinnyToward: move.pinnyToward,
         pinnyTowardTeam: pinnyTowardLabel,
         notRespected,
+        scoreAway: null,
+        scoreHome: null,
+        scoreStatus: null,
+        scoreDetail: null,
+        finalAway: null,
+        finalHome: null,
       };
     });
 
-    const deduped = dedupeExactGames(games);
+    const deduped = dedupeExactGames(games).map((g) => attachScoreToGame(g));
+    const slams = (GM_getValue(SLAMS_KEY, []) || []).slice().sort((a, b) => {
+      return (b.slamTime || 0) - (a.slamTime || 0);
+    });
 
     return {
       updatedAt: GM_getValue(ZCODE_TS_KEY, 0) || Date.now(),
       pinnyUpdatedAt: GM_getValue(PINNY_TS_KEY, 0) || null,
+      scoresUpdatedAt: GM_getValue(SCORE_TS_KEY, 0) || null,
       pinnyError,
       sportsPresent: resolveSportsPresent(zGames, pinnyGames),
       games: deduped,
+      slams,
     };
   }
 
@@ -1834,21 +1925,100 @@
     ((prior && prior.games) || []).forEach((g) => {
       priorByKey[gameKey(g)] = g;
     });
-    const games = ((slate && slate.games) || []).map((g) => {
-      const prev = priorByKey[gameKey(g)] || {};
-      return Object.assign({}, g, {
-        finalAway: prev.finalAway != null ? prev.finalAway : null,
-        finalHome: prev.finalHome != null ? prev.finalHome : null,
-        result: prev.result && prev.result !== 'pending' ? prev.result : 'pending',
-        resultNote: prev.resultNote || '',
-      });
+    const seen = {};
+    const games = [];
+
+    ((slate && slate.games) || []).forEach((g) => {
+      const key = gameKey(g);
+      seen[key] = true;
+      const prev = priorByKey[key] || {};
+      const graded =
+        prev.result === 'W' || prev.result === 'L' || prev.result === 'P';
+      games.push(
+        Object.assign({}, g, {
+          finalAway:
+            graded && prev.finalAway != null
+              ? prev.finalAway
+              : g.finalAway != null
+                ? g.finalAway
+                : prev.finalAway != null
+                  ? prev.finalAway
+                  : null,
+          finalHome:
+            graded && prev.finalHome != null
+              ? prev.finalHome
+              : g.finalHome != null
+                ? g.finalHome
+                : prev.finalHome != null
+                  ? prev.finalHome
+                  : null,
+          result: graded
+            ? prev.result
+            : prev.result && prev.result !== 'pending'
+              ? prev.result
+              : 'pending',
+          resultNote: graded
+            ? prev.resultNote || ''
+            : prev.resultNote || g.resultNote || '',
+          scoreAway: g.scoreAway != null ? g.scoreAway : prev.scoreAway,
+          scoreHome: g.scoreHome != null ? g.scoreHome : prev.scoreHome,
+          scoreStatus: g.scoreStatus || prev.scoreStatus || null,
+          scoreDetail: g.scoreDetail || prev.scoreDetail || null,
+        })
+      );
     });
+
+    // Preserve finished / dropped games that left the live ZCode slate
+    ((prior && prior.games) || []).forEach((g) => {
+      const key = gameKey(g);
+      if (seen[key]) return;
+      games.push(g);
+    });
+
+    const sportsSet = {};
+    games.forEach((g) => {
+      if (g.sport) sportsSet[g.sport] = true;
+    });
+    ((slate && slate.sportsPresent) || []).forEach((s) => {
+      sportsSet[s] = true;
+    });
+
     return {
       date,
       exportedAt: Date.now(),
-      sportsPresent: (slate && slate.sportsPresent) || [],
+      sportsPresent: Object.keys(sportsSet).sort(),
       games,
+      slams: mergeSlams((prior && prior.slams) || [], (slate && slate.slams) || []),
     };
+  }
+
+  function slamDedupeKey(s) {
+    const books = (s.books || []).slice().sort().join(',');
+    const windowBucket = Math.floor((s.slamTime || 0) / (SLAM_WINDOW_MS / 2));
+    return [
+      s.sport || '',
+      s.eventId || '',
+      canon(s.away || ''),
+      canon(s.home || ''),
+      canon(s.towardTeam || ''),
+      books,
+      windowBucket,
+    ].join('|');
+  }
+
+  function mergeSlams(prior, next) {
+    const byKey = {};
+    (prior || []).concat(next || []).forEach((s) => {
+      if (!s || !s.slamTime) return;
+      const key = s.id || slamDedupeKey(s);
+      const prev = byKey[key];
+      if (!prev || (s.slamTime || 0) >= (prev.slamTime || 0)) {
+        byKey[key] = s;
+      }
+    });
+    return Object.keys(byKey)
+      .map((k) => byKey[k])
+      .sort((a, b) => (b.slamTime || 0) - (a.slamTime || 0));
   }
 
   function takeIsAway(g) {
@@ -1912,7 +2082,7 @@
     };
   }
 
-  async function fetchMlbFinals(date) {
+  async function fetchMlbScores(date) {
     const url =
       `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${encodeURIComponent(date)}` +
       `&hydrate=linescore`;
@@ -1923,7 +2093,8 @@
       ? (data.dates || [])[0].games
       : []
     ).forEach((game) => {
-      const status = ((game.status && game.status.abstractGameState) || '').toLowerCase();
+      const abstract = ((game.status && game.status.abstractGameState) || '').toLowerCase();
+      const detailed = ((game.status && game.status.detailedState) || '').toLowerCase();
       const away = game.teams && game.teams.away;
       const home = game.teams && game.teams.home;
       const awayName =
@@ -1932,28 +2103,52 @@
         (home && home.team && (home.team.teamName || home.team.name)) || '';
       const awayAbbr = (away && away.team && away.team.abbreviation) || '';
       const homeAbbr = (home && home.team && home.team.abbreviation) || '';
-      const final =
-        status === 'final' ||
-        status === 'completed' ||
-        (game.status && String(game.status.codedGameState || '') === 'F');
-      if (!final) return;
+      const coded = game.status && String(game.status.codedGameState || '');
+      const isFinal =
+        abstract === 'final' ||
+        abstract === 'completed' ||
+        coded === 'F' ||
+        detailed.indexOf('final') >= 0;
+      const isLive = abstract === 'live' || coded === 'I' || detailed.indexOf('in progress') >= 0;
+      if (!isFinal && !isLive) return;
       const aScore = away && away.score;
       const hScore = home && home.score;
       if (!Number.isFinite(Number(aScore)) || !Number.isFinite(Number(hScore))) return;
-      out.push({
+      let scoreDetail = null;
+      const ls = game.linescore || {};
+      if (isLive) {
+        const inn = ls.currentInningOrdinal || ls.currentInning || '';
+        const half = (ls.inningState || '').slice(0, 3);
+        scoreDetail = [half, inn].filter(Boolean).join(' ') || 'Live';
+      } else {
+        scoreDetail = 'F';
+      }
+      const row = {
         sport: 'MLB',
         away: awayName,
         home: homeName,
         awayAbbr,
         homeAbbr,
-        finalAway: Number(aScore),
-        finalHome: Number(hScore),
-      });
+        scoreAway: Number(aScore),
+        scoreHome: Number(hScore),
+        scoreStatus: isFinal ? 'final' : 'live',
+        scoreDetail,
+      };
+      if (isFinal) {
+        row.finalAway = row.scoreAway;
+        row.finalHome = row.scoreHome;
+      }
+      out.push(row);
     });
     return out;
   }
 
-  async function fetchEspnFinals(sport, date) {
+  /** Finals-only wrapper for history grading. */
+  async function fetchMlbFinals(date) {
+    return (await fetchMlbScores(date)).filter((s) => s.scoreStatus === 'final');
+  }
+
+  async function fetchEspnScores(sport, date) {
     const path =
       sport === 'NFL'
         ? 'football/nfl'
@@ -1969,11 +2164,11 @@
     (data.events || []).forEach((ev) => {
       const comp = (ev.competitions && ev.competitions[0]) || null;
       if (!comp) return;
-      const state = ((comp.status && comp.status.type && comp.status.type.state) || '').toLowerCase();
-      const completed =
-        state === 'post' ||
-        !!(comp.status && comp.status.type && comp.status.type.completed);
-      if (!completed) return;
+      const st = (comp.status && comp.status.type) || {};
+      const state = String(st.state || '').toLowerCase();
+      const completed = state === 'post' || !!st.completed;
+      const isLive = state === 'in';
+      if (!completed && !isLive) return;
       const competitors = comp.competitors || [];
       let away = null;
       let home = null;
@@ -1985,17 +2180,35 @@
       const aScore = Number(away.score);
       const hScore = Number(home.score);
       if (!Number.isFinite(aScore) || !Number.isFinite(hScore)) return;
-      out.push({
+      let scoreDetail = null;
+      if (completed) {
+        scoreDetail = 'F';
+      } else {
+        const period = st.shortDetail || st.detail || st.description || 'Live';
+        scoreDetail = String(period);
+      }
+      const row = {
         sport,
         away: (away.team && (away.team.shortDisplayName || away.team.displayName)) || '',
         home: (home.team && (home.team.shortDisplayName || home.team.displayName)) || '',
         awayAbbr: (away.team && away.team.abbreviation) || '',
         homeAbbr: (home.team && home.team.abbreviation) || '',
-        finalAway: aScore,
-        finalHome: hScore,
-      });
+        scoreAway: aScore,
+        scoreHome: hScore,
+        scoreStatus: completed ? 'final' : 'live',
+        scoreDetail,
+      };
+      if (completed) {
+        row.finalAway = aScore;
+        row.finalHome = hScore;
+      }
+      out.push(row);
     });
     return out;
+  }
+
+  async function fetchEspnFinals(sport, date) {
+    return (await fetchEspnScores(sport, date)).filter((s) => s.scoreStatus === 'final');
   }
 
   function matchFinalToGame(g, finals) {
@@ -2003,16 +2216,51 @@
     for (let i = 0; i < finals.length; i++) {
       const f = finals[i];
       if (f.sport !== sport) continue;
+      const fa = f.finalAway != null ? f.finalAway : f.scoreAway;
+      const fh = f.finalHome != null ? f.finalHome : f.scoreHome;
       const direct =
         (teamsMatch(g.away, f.away, sport) || teamsMatch(g.awayAbbr, f.awayAbbr, sport)) &&
         (teamsMatch(g.home, f.home, sport) || teamsMatch(g.homeAbbr, f.homeAbbr, sport));
       const flipped =
         (teamsMatch(g.away, f.home, sport) || teamsMatch(g.awayAbbr, f.homeAbbr, sport)) &&
         (teamsMatch(g.home, f.away, sport) || teamsMatch(g.homeAbbr, f.awayAbbr, sport));
-      if (direct) return { finalAway: f.finalAway, finalHome: f.finalHome };
-      if (flipped) return { finalAway: f.finalHome, finalHome: f.finalAway };
+      if (direct) return { finalAway: fa, finalHome: fh };
+      if (flipped) return { finalAway: fh, finalHome: fa };
     }
     return null;
+  }
+
+  async function pollLiveScores() {
+    if (!isDashboardPage()) return;
+    const date = nyDateKey(Date.now());
+    const slate = buildSlate();
+    const sports = {};
+    (slate.games || []).forEach((g) => {
+      if (g.sport) sports[g.sport] = true;
+    });
+    if (!Object.keys(sports).length) {
+      sports.MLB = true;
+    }
+    let scores = [];
+    try {
+      if (sports.MLB) scores = scores.concat(await fetchMlbScores(date));
+    } catch (e) {
+      log('MLB scores fail', e && e.message);
+    }
+    try {
+      if (sports.NFL) scores = scores.concat(await fetchEspnScores('NFL', date));
+    } catch (e) {
+      log('NFL scores fail', e && e.message);
+    }
+    try {
+      if (sports.WNBA) scores = scores.concat(await fetchEspnScores('WNBA', date));
+    } catch (e) {
+      log('WNBA scores fail', e && e.message);
+    }
+    GM_setValue(SCORE_KEY, scores);
+    GM_setValue(SCORE_TS_KEY, Date.now());
+    log('Scores updated', scores.length);
+    publishSlate();
   }
 
   async function applyResultsToPayload(payload) {
@@ -2051,10 +2299,309 @@
         });
       }
       const graded = gradeTake(g, m.finalAway, m.finalHome);
-      return Object.assign({}, g, graded);
+      return Object.assign({}, g, graded, {
+        scoreAway: m.finalAway,
+        scoreHome: m.finalHome,
+        scoreStatus: 'final',
+        scoreDetail: 'F',
+      });
     });
     payload.resultsUpdatedAt = Date.now();
     return payload;
+  }
+
+  // --- Coordinated multi-book slam detection (BMR lineHistory) ---
+
+  function historyTimMs(tim) {
+    const n = Number(tim);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    // SBR uses unix seconds (sometimes fractional)
+    return n < 1e12 ? Math.round(n * 1000) : Math.round(n);
+  }
+
+  function parseHistoryLinesPayload(lines) {
+    const arr = Array.isArray(lines) ? lines : [];
+    const byPart = {};
+    arr.forEach((ln) => {
+      if (!ln || typeof ln !== 'object') return;
+      const partid = Number(ln.partid);
+      if (!Number.isFinite(partid)) return;
+      const ap = Number(ln.ap);
+      const adj = Number(ln.adj);
+      byPart[partid] = {
+        am: Number.isFinite(ap) ? ap : null,
+        spread: Number.isFinite(adj) ? adj : null,
+      };
+    });
+    return byPart;
+  }
+
+  async function fetchLineHistory(eid, mtid, paid, partids) {
+    const parts = (partids || []).filter((p) => Number.isFinite(Number(p)));
+    const partidArg = parts.length ? `partid:[${parts.join(',')}]` : '';
+    const q =
+      `{ lineHistory(eid:${Number(eid)},mtid:${Number(mtid)},paid:${Number(paid)}` +
+      (partidArg ? `,${partidArg}` : '') +
+      `){ tim lines } }`;
+    const url = `${BMR_ODDS_V2}?query=${encodeURIComponent(q)}`;
+    const text = await gmGet(url, { Accept: 'application/json' });
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (_) {
+      throw new Error('Invalid JSON from BMR lineHistory');
+    }
+    if (data.errors && data.errors.length) {
+      const msg =
+        (data.errors[0] && data.errors[0].message) || 'BMR lineHistory error';
+      throw new Error(msg);
+    }
+    return (data.data && data.data.lineHistory) || [];
+  }
+
+  function extractBookMoves(history, market, awayPartid, homePartid, awayName, homeName) {
+    const rows = (history || [])
+      .map((h) => ({
+        ts: historyTimMs(h.tim),
+        parts: parseHistoryLinesPayload(h.lines),
+      }))
+      .filter((r) => r.ts != null)
+      .sort((a, b) => a.ts - b.ts);
+
+    const moves = [];
+    for (let i = 1; i < rows.length; i++) {
+      const prev = rows[i - 1];
+      const curr = rows[i];
+      const pA = prev.parts[awayPartid];
+      const pH = prev.parts[homePartid];
+      const cA = curr.parts[awayPartid];
+      const cH = curr.parts[homePartid];
+      if (!pA || !pH || !cA || !cH) continue;
+
+      if (market === 'spread') {
+        if (
+          !Number.isFinite(pA.spread) ||
+          !Number.isFinite(pH.spread) ||
+          !Number.isFinite(cA.spread) ||
+          !Number.isFinite(cH.spread)
+        ) {
+          continue;
+        }
+        const dAway = cA.spread - pA.spread;
+        const dHome = cH.spread - pH.spread;
+        // Line move only — ignore juice-only
+        if (Math.abs(dAway) < SLAM_MIN_SPREAD - 1e-9 && Math.abs(dHome) < SLAM_MIN_SPREAD - 1e-9) {
+          continue;
+        }
+        if (Math.abs(dAway - dHome) < 0.05) continue;
+        // More negative spread = toward that side
+        let towardTeam = null;
+        let from = null;
+        let to = null;
+        let pts = null;
+        if (dAway < dHome) {
+          towardTeam = awayName;
+          from = pA.spread;
+          to = cA.spread;
+          pts = Math.abs(dAway);
+        } else {
+          towardTeam = homeName;
+          from = pH.spread;
+          to = cH.spread;
+          pts = Math.abs(dHome);
+        }
+        if (pts < SLAM_MIN_SPREAD - 1e-9) continue;
+        moves.push({
+          ts: curr.ts,
+          towardTeam,
+          from,
+          to,
+          magnitude: pts,
+          market: 'spread',
+        });
+      } else {
+        if (
+          !Number.isFinite(pA.am) ||
+          !Number.isFinite(pH.am) ||
+          !Number.isFinite(cA.am) ||
+          !Number.isFinite(cH.am)
+        ) {
+          continue;
+        }
+        const iA0 = americanToImplied(pA.am);
+        const iH0 = americanToImplied(pH.am);
+        const iA1 = americanToImplied(cA.am);
+        const iH1 = americanToImplied(cH.am);
+        if ([iA0, iH0, iA1, iH1].some((x) => x == null)) continue;
+        const dA = iA1 - iA0;
+        const dH = iH1 - iH0;
+        if (Math.abs(dA - dH) < 0.002) continue;
+        let towardTeam = null;
+        let from = null;
+        let to = null;
+        let cents = null;
+        if (dA > dH) {
+          towardTeam = awayName;
+          from = pA.am;
+          to = cA.am;
+          cents = Math.abs(americanCentsDelta(pA.am, cA.am));
+        } else {
+          towardTeam = homeName;
+          from = pH.am;
+          to = cH.am;
+          cents = Math.abs(americanCentsDelta(pH.am, cH.am));
+        }
+        if (!Number.isFinite(cents) || cents < SLAM_MIN_CENTS) continue;
+        moves.push({
+          ts: curr.ts,
+          towardTeam,
+          from,
+          to,
+          magnitude: cents,
+          market: 'ml',
+        });
+      }
+    }
+    return moves;
+  }
+
+  function clusterSlamMoves(game, bookMoves) {
+    // bookMoves: [{ book, moves: [...] }]
+    const flat = [];
+    bookMoves.forEach((bm) => {
+      (bm.moves || []).forEach((m) => {
+        flat.push(Object.assign({}, m, { book: bm.book }));
+      });
+    });
+    if (flat.length < 2) return [];
+
+    flat.sort((a, b) => a.ts - b.ts);
+    const clusters = [];
+    const used = {};
+
+    for (let i = 0; i < flat.length; i++) {
+      if (used[i]) continue;
+      const seed = flat[i];
+      const group = [seed];
+      const groupIdx = [i];
+      for (let j = i + 1; j < flat.length; j++) {
+        if (used[j]) continue;
+        const other = flat[j];
+        if (Math.abs(other.ts - seed.ts) > SLAM_WINDOW_MS) continue;
+        if (canon(other.towardTeam) !== canon(seed.towardTeam)) continue;
+        if (group.some((g) => g.book === other.book)) continue;
+        group.push(other);
+        groupIdx.push(j);
+      }
+      if (group.length < 2) continue;
+      groupIdx.forEach((idx) => {
+        used[idx] = true;
+      });
+      const books = group.map((g) => g.book).sort();
+      const slamTime = Math.max.apply(
+        null,
+        group.map((g) => g.ts)
+      );
+      const earliest = Math.min.apply(
+        null,
+        group.map((g) => g.ts)
+      );
+      const id = slamDedupeKey({
+        sport: game.sport,
+        eventId: game.eventId,
+        away: game.away,
+        home: game.home,
+        towardTeam: seed.towardTeam,
+        books,
+        slamTime,
+      });
+      clusters.push({
+        id,
+        slamTime,
+        spanMs: slamTime - earliest,
+        sport: game.sport,
+        market: game.market || MARKET_BY_SPORT[game.sport] || 'ml',
+        eventId: game.eventId || null,
+        away: game.away,
+        home: game.home,
+        awayAbbr: game.awayAbbr,
+        homeAbbr: game.homeAbbr,
+        towardTeam: seed.towardTeam,
+        books,
+        moves: group.map((g) => ({
+          book: g.book,
+          ts: g.ts,
+          from: g.from,
+          to: g.to,
+          magnitude: g.magnitude,
+          market: g.market,
+        })),
+      });
+    }
+    return clusters;
+  }
+
+  let slamPollInFlight = false;
+
+  async function pollSlams() {
+    if (!isDashboardPage()) return;
+    if (slamPollInFlight) return;
+    slamPollInFlight = true;
+    try {
+      const slate = buildSlate();
+      const candidates = (slate.games || []).filter(
+        (g) =>
+          g.eventId &&
+          Number.isFinite(Number(g.awayPartid)) &&
+          Number.isFinite(Number(g.homePartid))
+      );
+      if (!candidates.length) return;
+
+      // Cap per poll to avoid hammering BMR
+      const batch = candidates.slice(0, 12);
+      const found = [];
+
+      for (let gi = 0; gi < batch.length; gi++) {
+        const g = batch[gi];
+        const mtid = BMR_MTID_BY_SPORT[g.sport] || 83;
+        const market = g.market || MARKET_BY_SPORT[g.sport] || 'ml';
+        const bookMoves = [];
+        for (let bi = 0; bi < SLAM_BOOKS.length; bi++) {
+          const book = SLAM_BOOKS[bi];
+          try {
+            const hist = await fetchLineHistory(
+              g.eventId,
+              mtid,
+              book.paid,
+              [g.awayPartid, g.homePartid]
+            );
+            const moves = extractBookMoves(
+              hist,
+              market,
+              Number(g.awayPartid),
+              Number(g.homePartid),
+              g.away,
+              g.home
+            );
+            if (moves.length) bookMoves.push({ book: book.name, moves });
+          } catch (e) {
+            log('lineHistory', book.name, g.eventId, e && e.message);
+          }
+        }
+        found.push.apply(found, clusterSlamMoves(g, bookMoves));
+      }
+
+      const prior = GM_getValue(SLAMS_KEY, []) || [];
+      const merged = mergeSlams(prior, found);
+      GM_setValue(SLAMS_KEY, merged.slice(0, 200));
+      if (found.length) log('Slams detected', found.length, 'total', merged.length);
+      publishSlate();
+      if (found.length) scheduleAutoBackup();
+    } catch (e) {
+      log('Slam poll fail', e && e.message);
+    } finally {
+      slamPollInFlight = false;
+    }
   }
 
   let backupInFlight = false;
@@ -2157,12 +2704,35 @@
     setInterval(() => backupHistoryNow(false), BACKUP_MS);
     setTimeout(() => updateRecentResults(), 20000);
     setInterval(() => updateRecentResults(), RESULTS_MS);
+    setTimeout(() => pollLiveScores(), 6000);
+    setInterval(() => pollLiveScores(), SCORE_MS);
+    setTimeout(() => pollSlams(), 12000);
+    setInterval(() => pollSlams(), SLAM_MS);
+
+    const cfg = getGithubConfig();
+    if (!cfg.token || !cfg.repo) {
+      setTimeout(() => {
+        emitBackupStatus(
+          false,
+          'GitHub backup not configured',
+          'TM menu → Set GitHub token / repo (needed for History)'
+        );
+      }, 2500);
+    }
   }
 
   try {
     GM_registerMenuCommand('Poll Bet105 / Pinny now', () => {
       if (isDashboardPage()) pollPinnyOdds();
       else log('Open the dashboard tab to poll Bet105');
+    });
+    GM_registerMenuCommand('Poll live scores now', () => {
+      if (isDashboardPage()) pollLiveScores();
+      else log('Open the dashboard tab to poll scores');
+    });
+    GM_registerMenuCommand('Poll coordinated slams now', () => {
+      if (isDashboardPage()) pollSlams();
+      else log('Open the dashboard tab to poll slams');
     });
     GM_registerMenuCommand('Open odds-scores + ZCode tabs', () =>
       openZcodeTabsForSports(Object.keys(ZCODE_URLS))
@@ -2177,5 +2747,5 @@
   runPinnyScheduler();
   runDashboardBridge();
   runOddsScoresWatch();
-  log('Ready (MLB + NFL + WNBA · history backup v1.6.0)');
+  log('Ready (MLB + NFL + WNBA · scores + slams v1.7.0)');
 })();

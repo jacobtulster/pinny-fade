@@ -6,6 +6,7 @@
   const statusMeta = document.getElementById('statusMeta');
   const daySelect = document.getElementById('daySelect');
   const histBody = document.getElementById('histBody');
+  const slamBody = document.getElementById('slamBody');
 
   function setStatus(kind, text, meta) {
     statusBar.classList.remove('ok', 'warn');
@@ -99,8 +100,86 @@
   }
 
   function scoreCell(g) {
-    if (g.finalAway == null || g.finalHome == null) return '—';
-    return `${g.finalAway}–${g.finalHome}`;
+    if (g.finalAway != null && g.finalHome != null) {
+      return `${g.finalAway}–${g.finalHome}`;
+    }
+    if (g.scoreAway != null && g.scoreHome != null) {
+      return `${g.scoreAway}–${g.scoreHome}`;
+    }
+    return '—';
+  }
+
+  function fmtSlamTime(ms) {
+    if (!ms) return '—';
+    try {
+      return new Date(ms).toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    } catch (_) {
+      return String(ms);
+    }
+  }
+
+  function fmtSlamLine(from, to, market) {
+    if (market === 'spread') {
+      return `${fmtSpreadNum(from)}→${fmtSpreadNum(to)}`;
+    }
+    return `${fmtAmerican(from)}→${fmtAmerican(to)}`;
+  }
+
+  function fmtSlamSpan(ms) {
+    if (!Number.isFinite(ms) || ms < 0) return '—';
+    if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+    return `${(ms / 60000).toFixed(1).replace(/\.0$/, '')}m`;
+  }
+
+  function renderSlams(payload) {
+    if (!slamBody) return;
+    const slams = ((payload && payload.slams) || [])
+      .slice()
+      .sort((a, b) => (b.slamTime || 0) - (a.slamTime || 0));
+    if (!slams.length) {
+      slamBody.innerHTML =
+        '<tr class="empty"><td colspan="7">No slams in this archive.</td></tr>';
+      return;
+    }
+    slamBody.innerHTML = slams
+      .map((s) => {
+        const sport = s.sport || 'MLB';
+        const sportCls =
+          sport === 'NFL'
+            ? 'sport-badge nfl'
+            : sport === 'WNBA'
+              ? 'sport-badge wnba'
+              : 'sport-badge';
+        const matchup = `${escapeHtml(s.awayAbbr || s.away)} @ ${escapeHtml(
+          s.homeAbbr || s.home
+        )}`;
+        const books = (s.books || []).map(escapeHtml).join(', ');
+        const moves = (s.moves || [])
+          .map(
+            (m) =>
+              `<span class="slam-move">${escapeHtml(m.book)} ${escapeHtml(
+                fmtSlamLine(m.from, m.to, m.market || s.market)
+              )}</span>`
+          )
+          .join(' ');
+        return (
+          `<tr>` +
+          `<td class="slam-time">${escapeHtml(fmtSlamTime(s.slamTime))}</td>` +
+          `<td><span class="${sportCls}">${escapeHtml(sport)}</span></td>` +
+          `<td class="matchup">${matchup}</td>` +
+          `<td class="take-pick">${escapeHtml(s.towardTeam || '—')}</td>` +
+          `<td>${books || '—'}</td>` +
+          `<td class="slam-moves">${moves || '—'}</td>` +
+          `<td>${escapeHtml(fmtSlamSpan(s.spanMs))}</td>` +
+          `</tr>`
+        );
+      })
+      .join('');
   }
 
   function dayRecord(games) {
@@ -125,6 +204,7 @@
     if (!games.length) {
       histBody.innerHTML =
         '<tr class="empty"><td colspan="11">No games in this archive.</td></tr>';
+      renderSlams(payload);
       setStatus('warn', `Archive ${payload.date || ''}`, 'Empty day file');
       return;
     }
@@ -132,10 +212,12 @@
     const rec = dayRecord(games);
     const rateStr =
       rec.rate != null ? `${rec.rate.toFixed(1)}% Take units` : 'no finals yet';
+    const nSlams = ((payload && payload.slams) || []).length;
     setStatus(
       'ok',
       `${games.length} games · Take ${rec.w}-${rec.l}-${rec.p}` +
-        (rec.pending ? ` · ${rec.pending} pending` : ''),
+        (rec.pending ? ` · ${rec.pending} pending` : '') +
+        (nSlams ? ` · ${nSlams} slam${nSlams === 1 ? '' : 's'}` : ''),
       [
         payload.date,
         payload.exportedAt
@@ -194,6 +276,8 @@
         );
       })
       .join('');
+
+    renderSlams(payload);
   }
 
   async function loadIndex() {

@@ -3,5 +3,6 @@
   "exportedAt": null,
   "sportsPresent": [],
   "games": [],
-  "_comment": "Example schema only — real days are YYYY-MM-DD.json written by the userscript backup."
+  "slams": [],
+  "_comment": "Example schema only — real days are YYYY-MM-DD.json written by the userscript backup. games are merge-preserved across the day; slams are coordinated multi-book moves."
 }

@@ -9,6 +9,7 @@
   const statusText = document.getElementById('statusText');
   const statusMeta = document.getElementById('statusMeta');
   const slateBody = document.getElementById('slateBody');
+  const slamBody = document.getElementById('slamBody');
   const refreshBtn = document.getElementById('refreshBtn');
   const openZcodeBtn = document.getElementById('openZcodeBtn');
   const exportBtn = document.getElementById('exportBtn');
@@ -473,6 +474,95 @@
     return '';
   }
 
+  function fmtScoreCell(g) {
+    if (g.scoreAway == null || g.scoreHome == null) {
+      if (g.finalAway != null && g.finalHome != null) {
+        return `${g.finalAway}–${g.finalHome} · F`;
+      }
+      return '—';
+    }
+    const base = `${g.scoreAway}–${g.scoreHome}`;
+    if (g.scoreStatus === 'final' || g.scoreDetail === 'F') {
+      return `${base} · F`;
+    }
+    if (g.scoreDetail) return `${base} · ${g.scoreDetail}`;
+    if (g.scoreStatus === 'live') return `${base} · Live`;
+    return base;
+  }
+
+  function fmtSlamTime(ms) {
+    if (!ms) return '—';
+    try {
+      return new Date(ms).toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    } catch (_) {
+      return String(ms);
+    }
+  }
+
+  function fmtSlamLine(from, to, market) {
+    if (market === 'spread') {
+      return `${fmtSpreadNum(from)}→${fmtSpreadNum(to)}`;
+    }
+    return `${fmtAmerican(from)}→${fmtAmerican(to)}`;
+  }
+
+  function fmtSlamSpan(ms) {
+    if (!Number.isFinite(ms) || ms < 0) return '—';
+    if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+    return `${(ms / 60000).toFixed(1).replace(/\.0$/, '')}m`;
+  }
+
+  function renderSlams(payload) {
+    if (!slamBody) return;
+    const slams = ((payload && payload.slams) || [])
+      .slice()
+      .sort((a, b) => (b.slamTime || 0) - (a.slamTime || 0));
+    if (!slams.length) {
+      slamBody.innerHTML =
+        '<tr class="empty"><td colspan="7">No coordinated slams yet. Keep the dashboard open with userscript v1.7.0+.</td></tr>';
+      return;
+    }
+    slamBody.innerHTML = slams
+      .map((s) => {
+        const sport = s.sport || 'MLB';
+        const sportCls =
+          sport === 'NFL'
+            ? 'sport-badge nfl'
+            : sport === 'WNBA'
+              ? 'sport-badge wnba'
+              : 'sport-badge';
+        const matchup = `${escapeHtml(s.awayAbbr || s.away)} @ ${escapeHtml(
+          s.homeAbbr || s.home
+        )}`;
+        const books = (s.books || []).map(escapeHtml).join(', ');
+        const moves = (s.moves || [])
+          .map(
+            (m) =>
+              `<span class="slam-move">${escapeHtml(m.book)} ${escapeHtml(
+                fmtSlamLine(m.from, m.to, m.market || s.market)
+              )}</span>`
+          )
+          .join(' ');
+        return (
+          `<tr>` +
+          `<td class="slam-time">${escapeHtml(fmtSlamTime(s.slamTime))}</td>` +
+          `<td><span class="${sportCls}">${escapeHtml(sport)}</span></td>` +
+          `<td class="matchup">${matchup}</td>` +
+          `<td class="take-pick">${escapeHtml(s.towardTeam || '—')}</td>` +
+          `<td>${books || '—'}</td>` +
+          `<td class="slam-moves">${moves || '—'}</td>` +
+          `<td>${escapeHtml(fmtSlamSpan(s.spanMs))}</td>` +
+          `</tr>`
+        );
+      })
+      .join('');
+  }
+
   function render() {
     const payload = getPayload();
 
@@ -483,7 +573,11 @@
         'Click Open ZCode tabs (logged in) · keep dashboard open with userscript'
       );
       slateBody.innerHTML =
-        '<tr class="empty"><td colspan="10">No slate yet. Click Open ZCode tabs while logged in, keep this tab open with the userscript installed.</td></tr>';
+        '<tr class="empty"><td colspan="11">No slate yet. Click Open ZCode tabs while logged in, keep this tab open with the userscript installed.</td></tr>';
+      if (slamBody) {
+        slamBody.innerHTML =
+          '<tr class="empty"><td colspan="7">No coordinated slams yet.</td></tr>';
+      }
       return;
     }
 
@@ -496,6 +590,9 @@
     const pinnyAge = payload.pinnyUpdatedAt
       ? Math.max(0, Math.round((Date.now() - payload.pinnyUpdatedAt) / 1000))
       : null;
+    const scoreAge = payload.scoresUpdatedAt
+      ? Math.max(0, Math.round((Date.now() - payload.scoresUpdatedAt) / 1000))
+      : null;
 
     const nRed = games.filter((g) => g.tile === 'tile-red').length;
     const nYellow = games.filter((g) => g.tile === 'tile-yellow').length;
@@ -504,14 +601,17 @@
       (payload.sportsPresent && payload.sportsPresent.length
         ? payload.sportsPresent
         : [...new Set(games.map((g) => g.sport).filter(Boolean))]) || [];
+    const nSlams = (payload.slams && payload.slams.length) || 0;
 
     setStatus(
       'ok',
-      `${games.length} games · ${nRed} red · ${nYellow} yellow · ${nGreen} green`,
+      `${games.length} games · ${nRed} red · ${nYellow} yellow · ${nGreen} green` +
+        (nSlams ? ` · ${nSlams} slam${nSlams === 1 ? '' : 's'}` : ''),
       [
         sports.length ? sports.join('+') : null,
         ageSec != null ? `ZCode ${ageSec}s ago` : null,
         pinnyAge != null ? `Bet105 ${pinnyAge}s ago` : 'Bet105 pending',
+        scoreAge != null ? `Scores ${scoreAge}s ago` : null,
         payload.pinnyError ? `Bet105: ${payload.pinnyError}` : null,
       ]
         .filter(Boolean)
@@ -553,6 +653,12 @@
             : sport === 'WNBA'
               ? 'sport-badge wnba'
               : 'sport-badge';
+        const scoreCls =
+          g.scoreStatus === 'live'
+            ? 'score-cell live'
+            : g.scoreStatus === 'final'
+              ? 'score-cell final'
+              : 'score-cell';
 
         return (
           `<tr class="${rowClass}">` +
@@ -560,6 +666,7 @@
           `<td><span class="${sportCls}">${escapeHtml(sport)}</span></td>` +
           `<td class="gdate">${g.gdate ? escapeHtml(fmtGdate(g.gdate)) : '—'}</td>` +
           `<td class="matchup">${teamHtml(g.away, hl)} @ ${teamHtml(g.home, hl)}</td>` +
+          `<td class="${scoreCls}">${escapeHtml(fmtScoreCell(g))}</td>` +
           `<td class="public-cell"><span class="public-box${publicBorderClass(
             g
           )}">${teamHtml(g.publicTeam, hl)}${
@@ -579,6 +686,8 @@
         );
       })
       .join('');
+
+    renderSlams(payload);
   }
 
   window.addEventListener('pinny-fade-slate', function (e) {
@@ -670,6 +779,7 @@
       exportedAt: Date.now(),
       sportsPresent: (slate && slate.sportsPresent) || [],
       games,
+      slams: (slate && slate.slams) || [],
     };
   }
 
