@@ -21,7 +21,7 @@ Fade high ZCode public ratios when Bet105 (Pinnacle clone) line movement goes th
 2. On the dashboard tab: Tampermonkey menu → **Set GitHub token** → **Set GitHub repo / branch** → `jacobtulster/pinny-fade` / `main`.
 3. Keep the live dashboard open. History backups run **automatically** whenever the slate updates (debounced ~2.5s) and at least every minute. The script **merge-preserves** finished games into `history/YYYY-MM-DD.json` (America/New_York date) so they are not wiped when ZCode drops them. Finals + coordinated slams are stored on the same day file.
 4. Live/final scores: MLB Stats API + ESPN (NFL/WNBA). Dashboard **Score** column updates ~75s. **Take** is graded **W / P / L** after finals.
-5. Coordinated slams (≥2 of Bet105 / BetCRIS / BetOnline / Bovada, same direction within 2 min, ≥6¢ ML or ≥0.5pt spread line) appear in the table below the live slate and in History.
+5. Coordinated slams (≥2 of Bet105 / BetCRIS / BetOnline, same direction within 2 min, ≥6¢ ML or ≥0.5pt spread line) appear in the table below the live slate and in History.
 6. Anyone can open the public History URL to browse past days (after the first backup commits).
 
 Optional: **Export today** downloads a local JSON copy. Menu → **Backup history now** / **Update recent W/P/L results** / **Poll live scores** / **Poll coordinated slams**.
@@ -39,7 +39,7 @@ Chrome/Edge blocks Tampermonkey on local files unless **Allow access to file URL
 
 ## Notes
 
-- Odds source: [Bookmakers Review odds-scores](https://www.bookmakersreview.com/odds-scores/) + Bet105 GraphQL open/current (`paid=130`). Slam books: Bet105=130, BetCRIS=10, BetOnline=8, Bovada=9 via `lineHistory`.
+- Odds source: [Bookmakers Review odds-scores](https://www.bookmakersreview.com/odds-scores/) + Bet105 GraphQL open/current (`paid=130`). Slam books: Bet105=130, BetCRIS=10, BetOnline=8 via `lineHistory`.
 - MLB moneyline; NFL/WNBA point spread.
 - No persistent dashboard cache — only live TM pushes. GM storage is live IPC between open tabs.
 - History grades **Take** only: MLB = ML vs final; NFL/WNBA = ATS vs snapshot current spread.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pinny Fade — ZCode + Bet105 (MLB/NFL/WNBA)
 // @namespace    https://github.com/local/pinny-fade
-// @version      1.7.1
+// @version      1.7.2
 // @description  Scrape ZCode LR; Bet105 open→current; live scores; multi-book slam tracker; GitHub history
 // @author       You
 // @match        https://zcodesystem.com/linereversals.php*
@@ -67,7 +67,6 @@
     { name: 'Bet105', paid: 130 },
     { name: 'BetCRIS', paid: 10 },
     { name: 'BetOnline', paid: 8 },
-    { name: 'Bovada', paid: 9 },
   ];
   const SLAM_CURSOR_KEY = 'pinnyFadeSlamCursor';
   const SLAM_BATCH = 16;
@@ -2797,5 +2796,5 @@
   runPinnyScheduler();
   runDashboardBridge();
   runOddsScoresWatch();
-  log('Ready (MLB + NFL + WNBA · scores + slams v1.7.1)');
+  log('Ready (MLB + NFL + WNBA · scores + slams v1.7.2)');
 })();
