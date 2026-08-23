@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pinny Fade — ZCode + Bet105 (MLB/NFL/WNBA)
 // @namespace    https://github.com/local/pinny-fade
-// @version      1.7.2
+// @version      1.7.6
 // @description  Scrape ZCode LR; Bet105 open→current; live scores; multi-book slam tracker; GitHub history
 // @author       You
 // @match        https://zcodesystem.com/linereversals.php*
@@ -17,10 +17,13 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
 // @grant        GM_openInTab
+// @grant        unsafeWindow
 // @connect      bookmakersreview.com
 // @connect      www.bookmakersreview.com
 // @connect      ms.virginia.us-east-1.bookmakersreview.com
 // @connect      api.github.com
+// @connect      raw.githubusercontent.com
+// @connect      jacobtulster.github.io
 // @connect      statsapi.mlb.com
 // @connect      site.api.espn.com
 // @run-at       document-idle
@@ -44,9 +47,17 @@
   const SCORE_KEY = 'pinnyFadeScores';
   const SCORE_TS_KEY = 'pinnyFadeScoresTs';
   const SLAMS_KEY = 'pinnyFadeSlams';
+  const ZCODE_REFRESH_KEY = 'pinnyFadeZcodeRefreshReq';
   const GH_TOKEN_KEY = 'pinnyFadeGithubToken';
   const GH_REPO_KEY = 'pinnyFadeGithubRepo';
   const GH_BRANCH_KEY = 'pinnyFadeGithubBranch';
+  const LOCAL_HIST_INDEX_KEY = 'pinnyFadeHistoryIndex';
+  const LOCAL_HIST_DAY_PREFIX = 'pinnyFadeHistoryDay_';
+  const DEFAULT_GH_REPO = 'jacobtulster/pinny-fade';
+  const PUBLIC_HISTORY_BASE =
+    'https://jacobtulster.github.io/pinny-fade';
+  const RAW_HISTORY_BASE =
+    'https://raw.githubusercontent.com/jacobtulster/pinny-fade/main';
 
   const BMR_ODDS_SCORES_URL = 'https://www.bookmakersreview.com/odds-scores/';
   /** BMR league ids on odds-scores (see newPages.leaguePages) */
@@ -87,6 +98,40 @@
   function log() {
     try {
       console.log.apply(console, ['[PinnyFade]'].concat([].slice.call(arguments)));
+    } catch (_) {}
+  }
+
+  /** Page window — required so dashboard app.js can see slate + button events. */
+  function pageWin() {
+    try {
+      if (typeof unsafeWindow !== 'undefined' && unsafeWindow) return unsafeWindow;
+    } catch (_) {}
+    return window;
+  }
+
+  function emitPageEvent(name, detail) {
+    const evInit = { detail: detail, bubbles: true, cancelable: true };
+    try {
+      pageWin().dispatchEvent(new CustomEvent(name, evInit));
+    } catch (_) {}
+    try {
+      document.dispatchEvent(new CustomEvent(name, evInit));
+    } catch (_) {}
+  }
+
+  function onPageEvent(name, handler) {
+    let lastAt = 0;
+    const wrap = function (e) {
+      const now = Date.now();
+      if (now - lastAt < 80) return;
+      lastAt = now;
+      handler(e);
+    };
+    try {
+      pageWin().addEventListener(name, wrap);
+    } catch (_) {}
+    try {
+      document.addEventListener(name, wrap);
     } catch (_) {}
   }
 
@@ -786,6 +831,14 @@
     };
     tick();
     setInterval(tick, ZCODE_SCRAPE_MS);
+    try {
+      if (typeof GM_addValueChangeListener === 'function') {
+        GM_addValueChangeListener(ZCODE_REFRESH_KEY, () => {
+          log('ZCode refresh requested from dashboard');
+          tick();
+        });
+      }
+    } catch (_) {}
   }
 
   // --- Bet105 (Bookmakers Review) true open + current ---
@@ -1590,6 +1643,8 @@
         publicRatio2: r2,
         favRatio,
         popularNumber,
+        mlPopular1: Number.isFinite(z.mlPopular1) && z.mlPopular1 >= 1 ? z.mlPopular1 : null,
+        mlPopular2: Number.isFinite(z.mlPopular2) && z.mlPopular2 >= 1 ? z.mlPopular2 : null,
         mlTicketsHl,
         tixDiffHl,
         pinnyMatched,
@@ -1615,9 +1670,12 @@
     });
 
     const deduped = dedupeExactGames(games).map((g) => attachScoreToGame(g));
-    const slams = (GM_getValue(SLAMS_KEY, []) || []).slice().sort((a, b) => {
-      return (a.slamTime || 0) - (b.slamTime || 0);
-    });
+    const slams = filterSlamsToSlate(GM_getValue(SLAMS_KEY, []) || [], deduped)
+      .map((s) => enrichSlamZcode(s, deduped))
+      .slice()
+      .sort((a, b) => {
+        return (b.slamTime || 0) - (a.slamTime || 0);
+      });
 
     return {
       updatedAt: GM_getValue(ZCODE_TS_KEY, 0) || Date.now(),
@@ -1679,8 +1737,8 @@
     if (!isDashboardPage()) return;
     const slate = buildSlate();
     try {
-      window.__PINNY_FADE_SLATE__ = slate;
-      window.dispatchEvent(new CustomEvent('pinny-fade-slate', { detail: slate }));
+      pageWin().__PINNY_FADE_SLATE__ = slate;
+      emitPageEvent('pinny-fade-slate', slate);
     } catch (e) {
       log('Dashboard push failed', e && e.message);
     }
@@ -1704,12 +1762,145 @@
     return true;
   }
 
+  function isHistoryPage() {
+    const path = (location.pathname || '').toLowerCase();
+    return path.indexOf('history.html') >= 0 || !!document.getElementById('histTable');
+  }
+
+  function clearSlamCache() {
+    GM_setValue(SLAMS_KEY, []);
+    GM_setValue(SLAM_CURSOR_KEY, 0);
+  }
+
+  function slamMatchesGame(slam, game) {
+    if (!slam || !game) return false;
+    if (slam.eventId && game.eventId && String(slam.eventId) === String(game.eventId)) {
+      return true;
+    }
+    const sport = game.sport || slam.sport || 'MLB';
+    return (
+      (slam.sport || '') === (game.sport || '') &&
+      teamsMatch(slam.away, game.away, sport) &&
+      teamsMatch(slam.home, game.home, sport)
+    );
+  }
+
+  function filterSlamsToSlate(slams, games) {
+    if (!games || !games.length) return [];
+    return (slams || []).filter((s) => games.some((g) => slamMatchesGame(s, g)));
+  }
+
+  function zcodeStatsForTeam(game, team) {
+    if (!game || !team) return { ratio: null, popular: null };
+    const sport = game.sport || 'MLB';
+    if (
+      teamsMatch(team, game.away, sport) ||
+      teamsMatch(team, game.awayAbbr, sport)
+    ) {
+      const ratio = Number(game.publicRatio1);
+      const popular = Number(game.mlPopular1);
+      return {
+        ratio: Number.isFinite(ratio) && ratio > 0 ? ratio : null,
+        popular: Number.isFinite(popular) && popular >= 1 ? popular : null,
+      };
+    }
+    if (
+      teamsMatch(team, game.home, sport) ||
+      teamsMatch(team, game.homeAbbr, sport)
+    ) {
+      const ratio = Number(game.publicRatio2);
+      const popular = Number(game.mlPopular2);
+      return {
+        ratio: Number.isFinite(ratio) && ratio > 0 ? ratio : null,
+        popular: Number.isFinite(popular) && popular >= 1 ? popular : null,
+      };
+    }
+    return { ratio: null, popular: null };
+  }
+
+  function enrichSlamZcode(slam, games) {
+    if (!slam) return slam;
+    const game = (games || []).find((g) => slamMatchesGame(slam, g));
+    if (!game) return slam;
+    const stats = zcodeStatsForTeam(game, slam.towardTeam);
+    return Object.assign({}, slam, {
+      towardRatio: stats.ratio != null ? stats.ratio : slam.towardRatio,
+      towardPopular: stats.popular != null ? stats.popular : slam.towardPopular,
+    });
+  }
+
   function clearDashboardSessionStale() {
     // Clear odds only — ZCode tabs own ratio IPC; wiping them caused partial
     // re-scrapes to look like “correct then wrong/missing”.
     GM_setValue(PINNY_KEY, []);
     GM_setValue(PINNY_ERR_KEY, '');
     GM_setValue(PINNY_TS_KEY, 0);
+    clearSlamCache();
+  }
+
+  // --- GitHub history backup + W/P/L ---
+
+  function nyDateKey(ms) {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date(ms || Date.now()));
+    } catch (_) {
+      return new Date(ms || Date.now()).toISOString().slice(0, 10);
+    }
+  }
+
+  function emitBackupStatus(ok, message, meta) {
+    if (!isDashboardPage() && !isHistoryPage()) return;
+    emitPageEvent('pinny-fade-backup-status', {
+      ok: !!ok,
+      message: message || '',
+      meta: meta || '',
+    });
+  }
+
+  function emitRefreshStatus(message, meta) {
+    if (!isDashboardPage()) return;
+    emitPageEvent('pinny-fade-refresh-status', {
+      message: message || '',
+      meta: meta || '',
+    });
+  }
+
+  async function refreshDashboard() {
+    log('Dashboard refresh requested');
+    emitRefreshStatus('Refreshing…', 'Bet105 + scores + coordinated slams');
+    clearSlamCache();
+    GM_setValue(PINNY_KEY, []);
+    GM_setValue(PINNY_ERR_KEY, '');
+    GM_setValue(PINNY_TS_KEY, 0);
+    GM_setValue(ZCODE_REFRESH_KEY, Date.now());
+    publishSlate();
+    try {
+      await pollPinnyOdds();
+      emitRefreshStatus('Bet105 updated', 'Scanning coordinated slams…');
+      try {
+        await pollLiveScores();
+      } catch (_) {}
+      await pollSlams({ fresh: true });
+      const slate = buildSlate();
+      const nSlams = (slate.slams && slate.slams.length) || 0;
+      emitRefreshStatus(
+        'Refresh complete',
+        `${(slate.games && slate.games.length) || 0} games · ${nSlams} slam${
+          nSlams === 1 ? '' : 's'
+        }`
+      );
+      try {
+        backupHistoryNow(false);
+      } catch (_) {}
+    } catch (e) {
+      log('Dashboard refresh fail', e && e.message);
+      emitRefreshStatus('Refresh failed', (e && e.message) || '');
+    }
   }
 
   function runDashboardBridge() {
@@ -1722,23 +1913,23 @@
     push();
     setInterval(push, DASHBOARD_PUSH_MS);
 
-    window.addEventListener('pinny-fade-request-refresh', () => {
-      pollPinnyOdds().then(() => {
-        try {
-          backupHistoryNow(false);
-        } catch (_) {}
-      });
+    onPageEvent('pinny-fade-request-refresh', () => {
+      refreshDashboard();
     });
 
-    window.addEventListener('pinny-fade-open-zcode', (e) => {
+    onPageEvent('pinny-fade-open-zcode', (e) => {
       const sports =
         (e && e.detail && e.detail.sports) ||
         GM_getValue(SPORTS_KEY, []) ||
         Object.keys(ZCODE_URLS);
       openZcodeTabsForSports(sports);
+      clearSlamCache();
+      GM_setValue(ZCODE_REFRESH_KEY, Date.now());
+      publishSlate();
+      pollSlams({ fresh: true });
     });
 
-    window.addEventListener('pinny-fade-request-backup', () => {
+    onPageEvent('pinny-fade-request-backup', () => {
       backupHistoryNow(true);
     });
 
@@ -1768,35 +1959,14 @@
     runHistoryScheduler();
   }
 
-  // --- GitHub history backup + W/P/L ---
-
-  function nyDateKey(ms) {
-    try {
-      return new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/New_York',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(new Date(ms || Date.now()));
-    } catch (_) {
-      return new Date(ms || Date.now()).toISOString().slice(0, 10);
-    }
-  }
-
-  function emitBackupStatus(ok, message, meta) {
-    if (!isDashboardPage()) return;
-    try {
-      window.dispatchEvent(
-        new CustomEvent('pinny-fade-backup-status', {
-          detail: { ok: !!ok, message: message || '', meta: meta || '' },
-        })
-      );
-    } catch (_) {}
-  }
-
   function getGithubConfig() {
     const token = String(GM_getValue(GH_TOKEN_KEY, '') || '').trim();
-    const repo = String(GM_getValue(GH_REPO_KEY, '') || '').trim();
+    let repo = String(GM_getValue(GH_REPO_KEY, '') || '').trim();
+    if (!repo) repo = DEFAULT_GH_REPO;
+    repo = repo
+      .replace(/^https?:\/\/github\.com\//i, '')
+      .replace(/\.git$/i, '')
+      .replace(/\/$/, '');
     const branch = String(GM_getValue(GH_BRANCH_KEY, 'main') || 'main').trim() || 'main';
     return { token, repo, branch };
   }
@@ -1804,22 +1974,103 @@
   function promptGithubToken() {
     const cur = GM_getValue(GH_TOKEN_KEY, '') || '';
     const next = window.prompt(
-      'GitHub PAT (repo scope) for continual history backups:',
+      'GitHub PAT (classic: repo scope, or fine-grained: Contents R/W on pinny-fade) for history backups:',
       cur
     );
     if (next == null) return;
     GM_setValue(GH_TOKEN_KEY, String(next).trim());
     log('GitHub token saved');
+    emitBackupStatus(true, 'GitHub token saved', 'Run Backup history now (or keep dashboard open)');
+    try {
+      backupHistoryNow(true);
+    } catch (_) {}
   }
 
   function promptGithubRepo() {
-    const cur = GM_getValue(GH_REPO_KEY, '') || '';
+    const cur = GM_getValue(GH_REPO_KEY, '') || DEFAULT_GH_REPO;
     const next = window.prompt('GitHub repo as owner/name:', cur);
     if (next == null) return;
-    GM_setValue(GH_REPO_KEY, String(next).trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, ''));
+    GM_setValue(
+      GH_REPO_KEY,
+      String(next)
+        .trim()
+        .replace(/^https?:\/\/github\.com\//i, '')
+        .replace(/\.git$/i, '')
+        .replace(/\/$/, '')
+    );
     const br = window.prompt('Branch:', GM_getValue(GH_BRANCH_KEY, 'main') || 'main');
     if (br != null) GM_setValue(GH_BRANCH_KEY, String(br).trim() || 'main');
     log('GitHub repo saved', GM_getValue(GH_REPO_KEY, ''));
+    emitBackupStatus(
+      true,
+      'GitHub repo saved',
+      `${GM_getValue(GH_REPO_KEY, '')} @ ${GM_getValue(GH_BRANCH_KEY, 'main')}`
+    );
+  }
+
+  function localHistoryDayKey(date) {
+    return LOCAL_HIST_DAY_PREFIX + date;
+  }
+
+  function readLocalHistoryIndex() {
+    const days = GM_getValue(LOCAL_HIST_INDEX_KEY, []) || [];
+    return Array.isArray(days) ? days.filter(Boolean) : [];
+  }
+
+  function writeLocalHistoryIndex(days) {
+    const cleaned = [];
+    const seen = {};
+    (days || []).forEach((d) => {
+      if (!d || seen[d]) return;
+      seen[d] = true;
+      cleaned.push(d);
+    });
+    GM_setValue(LOCAL_HIST_INDEX_KEY, cleaned);
+    return cleaned;
+  }
+
+  function saveLocalHistory(payload) {
+    if (!payload || !payload.date) return;
+    const date = payload.date;
+    GM_setValue(localHistoryDayKey(date), payload);
+    const days = readLocalHistoryIndex().filter((d) => d !== date);
+    days.unshift(date);
+    writeLocalHistoryIndex(days.slice(0, 120));
+    log('Local history saved', date, (payload.games && payload.games.length) || 0);
+  }
+
+  function readLocalHistoryDay(date) {
+    return GM_getValue(localHistoryDayKey(date), null) || null;
+  }
+
+  function publishHistoryBundle(extra) {
+    if (!isHistoryPage()) return;
+    const days = readLocalHistoryIndex();
+    const byDate = {};
+    days.forEach((d) => {
+      const payload = readLocalHistoryDay(d);
+      if (payload) byDate[d] = payload;
+    });
+    if (extra && extra.byDate) {
+      Object.keys(extra.byDate).forEach((d) => {
+        if (extra.byDate[d]) byDate[d] = extra.byDate[d];
+      });
+    }
+    const mergedDays = Object.keys(byDate).sort(function (a, b) {
+      return a < b ? 1 : a > b ? -1 : 0;
+    });
+    const bundle = {
+      days: mergedDays,
+      byDate,
+      source: (extra && extra.source) || 'local',
+      updatedAt: Date.now(),
+    };
+    try {
+      pageWin().__PINNY_FADE_HISTORY__ = bundle;
+      emitPageEvent('pinny-fade-history', bundle);
+    } catch (e) {
+      log('History publish failed', e && e.message);
+    }
   }
 
   function utf8ToBase64(str) {
@@ -2019,7 +2270,7 @@
     });
     return Object.keys(byKey)
       .map((k) => byKey[k])
-      .sort((a, b) => (a.slamTime || 0) - (b.slamTime || 0));
+      .sort((a, b) => (b.slamTime || 0) - (a.slamTime || 0));
   }
 
   function takeIsAway(g) {
@@ -2565,6 +2816,7 @@
         books,
         slamTime,
       });
+      const zcode = zcodeStatsForTeam(game, seed.towardTeam);
       clusters.push({
         id,
         slamTime,
@@ -2577,6 +2829,8 @@
         awayAbbr: game.awayAbbr,
         homeAbbr: game.homeAbbr,
         towardTeam: seed.towardTeam,
+        towardRatio: zcode.ratio,
+        towardPopular: zcode.popular,
         books,
         moves: group.map((g) => ({
           book: g.book,
@@ -2592,10 +2846,15 @@
   }
 
   let slamPollInFlight = false;
+  let slamFreshPending = false;
 
-  async function pollSlams() {
+  async function pollSlams(opts) {
+    opts = opts || {};
     if (!isDashboardPage()) return;
-    if (slamPollInFlight) return;
+    if (slamPollInFlight) {
+      if (opts.fresh) slamFreshPending = true;
+      return;
+    }
     slamPollInFlight = true;
     try {
       const slate = buildSlate();
@@ -2605,9 +2864,15 @@
           Number.isFinite(Number(g.awayPartid)) &&
           Number.isFinite(Number(g.homePartid))
       );
-      if (!candidates.length) return;
+      if (!candidates.length) {
+        if (opts.fresh) {
+          GM_setValue(SLAMS_KEY, []);
+          publishSlate();
+        }
+        return;
+      }
 
-      const batch = pickSlamBatch(candidates);
+      const batch = opts.fresh ? candidates : pickSlamBatch(candidates);
       const found = [];
 
       for (let gi = 0; gi < batch.length; gi++) {
@@ -2640,52 +2905,87 @@
         found.push.apply(found, clusterSlamMoves(g, bookMoves));
       }
 
-      const prior = GM_getValue(SLAMS_KEY, []) || [];
-      const merged = mergeSlams(prior, found);
+      let merged;
+      if (opts.fresh) {
+        merged = filterSlamsToSlate(found, candidates);
+      } else {
+        const prior = filterSlamsToSlate(GM_getValue(SLAMS_KEY, []) || [], candidates);
+        merged = filterSlamsToSlate(mergeSlams(prior, found), candidates);
+      }
       GM_setValue(SLAMS_KEY, merged.slice(0, 200));
-      if (found.length) log('Slams detected', found.length, 'total', merged.length);
+      if (found.length || opts.fresh) {
+        log(
+          opts.fresh ? 'Slam fresh scan' : 'Slams detected',
+          found.length,
+          'total',
+          merged.length
+        );
+      }
       publishSlate();
       if (found.length) scheduleAutoBackup();
     } catch (e) {
       log('Slam poll fail', e && e.message);
     } finally {
       slamPollInFlight = false;
+      if (slamFreshPending) {
+        slamFreshPending = false;
+        clearSlamCache();
+        pollSlams({ fresh: true });
+      }
     }
   }
 
   let backupInFlight = false;
+  let lastNoTokenWarnAt = 0;
 
   async function backupHistoryNow(force) {
     if (!isDashboardPage()) return;
     if (backupInFlight) return;
-    const cfg = getGithubConfig();
-    if (!cfg.token || !cfg.repo) {
-      if (force) {
-        emitBackupStatus(
-          false,
-          'GitHub backup not configured',
-          'Tampermonkey menu → Set GitHub token / repo'
-        );
-      }
-      return;
-    }
     const slate = buildSlate();
     if (!slate.games || !slate.games.length) {
-      if (force) emitBackupStatus(false, 'No games to backup yet', '');
+      if (force) emitBackupStatus(false, 'No games to backup yet', 'Open ZCode tabs first');
       return;
     }
 
     backupInFlight = true;
     try {
       const date = nyDateKey(Date.now());
-      const dayPath = `history/${date}.json`;
-      const existing = await githubGetContent(dayPath);
-      let payload = buildHistoryPayload(slate, existing.json);
+      const existingLocal = readLocalHistoryDay(date);
+      const cfg = getGithubConfig();
+
+      let existingSha = null;
+      let githubPrior = null;
+      if (cfg.token) {
+        try {
+          const existing = await githubGetContent(`history/${date}.json`);
+          existingSha = existing.sha;
+          githubPrior = existing.json;
+        } catch (e) {
+          log('GitHub day GET fail', e && e.message);
+        }
+      }
+
+      let payload = buildHistoryPayload(slate, githubPrior || existingLocal);
       payload = await applyResultsToPayload(payload);
+      saveLocalHistory(payload);
+
+      if (!cfg.token) {
+        const now = Date.now();
+        if (force || now - lastNoTokenWarnAt > 60000) {
+          lastNoTokenWarnAt = now;
+          emitBackupStatus(
+            false,
+            'Saved locally — GitHub token missing',
+            'TM menu → Set GitHub token (publishes to GitHub Pages History)'
+          );
+        }
+        return;
+      }
+
       await githubPutContent(
-        dayPath,
+        `history/${date}.json`,
         payload,
-        existing.sha,
+        existingSha,
         `pinny-fade: archive ${date} (${payload.games.length} games)`
       );
 
@@ -2702,6 +3002,9 @@
         indexFile.sha,
         `pinny-fade: index ${date}`
       );
+      writeLocalHistoryIndex(
+        filtered.concat(readLocalHistoryIndex().filter((d) => filtered.indexOf(d) < 0))
+      );
 
       log('GitHub backup ok', date, payload.games.length);
       emitBackupStatus(
@@ -2711,16 +3014,94 @@
       );
     } catch (e) {
       log('GitHub backup fail', e && e.message);
-      emitBackupStatus(false, 'GitHub backup failed', (e && e.message) || '');
+      emitBackupStatus(
+        false,
+        'GitHub backup failed (local copy kept)',
+        (e && e.message) || ''
+      );
     } finally {
       backupInFlight = false;
     }
   }
 
+  async function fetchPublicHistoryIndex() {
+    const urls = [
+      `${PUBLIC_HISTORY_BASE}/history/index.json`,
+      `${RAW_HISTORY_BASE}/history/index.json`,
+    ];
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        const text = await gmGet(urls[i], { Accept: 'application/json' });
+        const data = JSON.parse(text);
+        if (data && Array.isArray(data.days)) return data.days.filter(Boolean);
+      } catch (_) {}
+    }
+    return [];
+  }
+
+  async function fetchPublicHistoryDay(date) {
+    const urls = [
+      `${PUBLIC_HISTORY_BASE}/history/${date}.json`,
+      `${RAW_HISTORY_BASE}/history/${date}.json`,
+    ];
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        const text = await gmGet(urls[i], { Accept: 'application/json' });
+        return JSON.parse(text);
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  async function runHistoryPageBridge() {
+    if (!isHistoryPage()) return;
+    log('History page bridge active');
+
+    try {
+      if (!document.getElementById('pinny-fade-tm-badge')) {
+        const b = document.createElement('div');
+        b.id = 'pinny-fade-tm-badge';
+        b.textContent = 'TM companion connected';
+        b.style.cssText =
+          'position:fixed;bottom:12px;right:12px;z-index:99999;padding:6px 10px;border-radius:8px;background:#2dd4a8;color:#041018;font:600 12px/1.2 Segoe UI,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35)';
+        document.body.appendChild(b);
+      }
+    } catch (_) {}
+
+    publishHistoryBundle({ source: 'local' });
+
+    try {
+      const remoteDays = await fetchPublicHistoryIndex();
+      const byDate = {};
+      for (let i = 0; i < Math.min(remoteDays.length, 30); i++) {
+        const d = remoteDays[i];
+        const local = readLocalHistoryDay(d);
+        if (local) {
+          byDate[d] = local;
+          continue;
+        }
+        const remote = await fetchPublicHistoryDay(d);
+        if (remote) {
+          byDate[d] = remote;
+          saveLocalHistory(remote);
+        }
+      }
+      if (remoteDays.length) {
+        writeLocalHistoryIndex(
+          remoteDays.concat(readLocalHistoryIndex().filter((d) => remoteDays.indexOf(d) < 0))
+        );
+      }
+      publishHistoryBundle({ byDate, source: 'local+remote' });
+    } catch (e) {
+      log('History remote load fail', e && e.message);
+      publishHistoryBundle({ source: 'local' });
+    }
+  }
+
   async function updateRecentResults() {
     const cfg = getGithubConfig();
-    if (!cfg.token || !cfg.repo) {
-      emitBackupStatus(false, 'GitHub not configured', 'Set token + repo first');
+    if (!cfg.token) {
+      emitBackupStatus(false, 'GitHub token missing', 'TM menu → Set GitHub token');
       return;
     }
     try {
@@ -2755,22 +3136,26 @@
     setInterval(() => updateRecentResults(), RESULTS_MS);
     setTimeout(() => pollLiveScores(), 6000);
     setInterval(() => pollLiveScores(), SCORE_MS);
-    setTimeout(() => pollSlams(), 12000);
-    setInterval(() => pollSlams(), SLAM_MS);
+    setTimeout(() => pollSlams({ fresh: true }), 8000);
+    setInterval(() => pollSlams({ fresh: false }), SLAM_MS);
 
     const cfg = getGithubConfig();
-    if (!cfg.token || !cfg.repo) {
+    if (!cfg.token) {
       setTimeout(() => {
         emitBackupStatus(
           false,
-          'GitHub backup not configured',
-          'TM menu → Set GitHub token / repo (needed for History)'
+          'History: local save on, GitHub off',
+          'TM menu → Set GitHub token (repo defaults to jacobtulster/pinny-fade)'
         );
       }, 2500);
     }
   }
 
   try {
+    GM_registerMenuCommand('Refresh dashboard now', () => {
+      if (isDashboardPage()) refreshDashboard();
+      else log('Open the dashboard tab to refresh');
+    });
     GM_registerMenuCommand('Poll Bet105 / Pinny now', () => {
       if (isDashboardPage()) pollPinnyOdds();
       else log('Open the dashboard tab to poll Bet105');
@@ -2780,8 +3165,11 @@
       else log('Open the dashboard tab to poll scores');
     });
     GM_registerMenuCommand('Poll coordinated slams now', () => {
-      if (isDashboardPage()) pollSlams();
-      else log('Open the dashboard tab to poll slams');
+      if (isDashboardPage()) {
+        clearSlamCache();
+        publishSlate();
+        pollSlams({ fresh: true });
+      } else log('Open the dashboard tab to poll slams');
     });
     GM_registerMenuCommand('Open odds-scores + ZCode tabs', () =>
       openZcodeTabsForSports(Object.keys(ZCODE_URLS))
@@ -2795,6 +3183,7 @@
   runZcodeLoop();
   runPinnyScheduler();
   runDashboardBridge();
+  runHistoryPageBridge();
   runOddsScoresWatch();
-  log('Ready (MLB + NFL + WNBA · scores + slams v1.7.2)');
+  log('Ready (MLB + NFL + WNBA · scores + slams + history v1.7.6)');
 })();

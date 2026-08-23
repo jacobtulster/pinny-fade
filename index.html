@@ -47,7 +47,7 @@
             <th class="sortable" data-sort="date" title="Sort: soonest first · started last">Date</th>
             <th>Matchup</th>
             <th>Public</th>
-            <th>Fav×</th>
+            <th class="sortable" data-sort="fav" title="Sort by Fav×: high→low, then low→high">Fav×</th>
             <th>Take</th>
             <th class="sortable" data-sort="move" title="Sort: biggest ¢/pt move first">Open → Now</th>
             <th>Toward</th>
@@ -56,7 +56,7 @@
         </thead>
         <tbody id="slateBody">
           <tr class="empty">
-            <td colspan="10">No slate yet. Click <b>Open ZCode tabs</b> (opens BMR odds-scores + ZCode; stay logged in). Keep this page open with userscript v1.7.1+.</td>
+            <td colspan="10">No slate yet. Click <b>Open ZCode tabs</b> (opens BMR odds-scores + ZCode; stay logged in). Keep this page open with userscript v1.7.4+.</td>
           </tr>
         </tbody>
       </table>
@@ -65,7 +65,7 @@
     <section class="slam-section" aria-labelledby="slamHeading">
       <div class="slam-header">
         <h2 id="slamHeading">Coordinated slams</h2>
-        <p class="tagline">≥2 of Bet105 / BetCRIS / BetOnline moving the same way within 2 minutes (≥6¢ ML · ≥0.5pt spread line) · oldest first</p>
+        <p class="tagline">≥2 of Bet105 / BetCRIS / BetOnline moving the same way within 2 minutes (≥6¢ ML · ≥0.5pt spread line) · newest first</p>
       </div>
       <div class="table-wrap">
         <table class="slate slam-table" id="slamTable">
@@ -90,7 +90,7 @@
     </section>
 
     <footer class="footer">
-      <p>Personal use · Install userscript v1.7.1+ · <a href="history.html">History</a> · Not affiliated with ZCode or Pinnacle</p>
+      <p>Personal use · Install userscript v1.7.4+ · <a href="history.html">History</a> · Not affiliated with ZCode or Pinnacle</p>
     </footer>
   </div>
   <script src="app.js"></script>

@@ -11,20 +11,22 @@ Fade high ZCode public ratios when Bet105 (Pinnacle clone) line movement goes th
 ## Setup (once)
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/).
-2. Add / re-paste [`userscript/pinny-fade-mlb.user.js`](userscript/pinny-fade-mlb.user.js) (**v1.7.0+**).
+2. Add / re-paste [`userscript/pinny-fade-mlb.user.js`](userscript/pinny-fade-mlb.user.js) (**v1.7.5+**).
 3. Allow the script to open tabs / connect to bookmakersreview.com (and GitHub / score APIs) when prompted.
 4. Open the **live** dashboard URL above (not only localhost) so backups and the companion run on GitHub Pages.
 
 ### GitHub history backup (continual)
 
-1. Create a classic Personal Access Token with **`repo`** scope.
-2. On the dashboard tab: Tampermonkey menu → **Set GitHub token** → **Set GitHub repo / branch** → `jacobtulster/pinny-fade` / `main`.
-3. Keep the live dashboard open. History backups run **automatically** whenever the slate updates (debounced ~2.5s) and at least every minute. The script **merge-preserves** finished games into `history/YYYY-MM-DD.json` (America/New_York date) so they are not wiped when ZCode drops them. Finals + coordinated slams are stored on the same day file.
-4. Live/final scores: MLB Stats API + ESPN (NFL/WNBA). Dashboard **Score** column updates ~75s. **Take** is graded **W / P / L** after finals.
-5. Coordinated slams (≥2 of Bet105 / BetCRIS / BetOnline, same direction within 2 min, ≥6¢ ML or ≥0.5pt spread line) appear in the table below the live slate and in History.
-6. Anyone can open the public History URL to browse past days (after the first backup commits).
+1. Create a classic Personal Access Token with **`repo`** scope (or a fine-grained token with **Contents: Read and write** on `jacobtulster/pinny-fade`).
+2. On the dashboard tab: Tampermonkey icon → **Set GitHub token**. Repo defaults to `jacobtulster/pinny-fade` / `main` (optional: **Set GitHub repo / branch**).
+3. Keep the live dashboard open. Archives always save **locally in Tampermonkey** (so History works on localhost). When a token is set, they also commit to `history/YYYY-MM-DD.json` on GitHub. Backups run when the slate updates (~2.5s debounce) and at least every minute. Finished games are **merge-preserved** so ZCode dropping them does not wipe the day file. Finals + coordinated slams are stored on the same day file.
+4. Live/final scores: MLB Stats API + ESPN (NFL/WNBA). Dashboard score under `#` updates ~75s. **Take** is graded **W / P / L** after finals.
+5. Coordinated slams (≥2 of Bet105 / BetCRIS / BetOnline, same direction within 2 min, ≥6¢ ML or ≥0.5pt spread line) appear below the live slate and in History.
+6. History page reads: Tampermonkey local archive → local `history/*.json` → public GitHub Pages / raw.
 
-Optional: **Export today** downloads a local JSON copy. Menu → **Backup history now** / **Update recent W/P/L results** / **Poll live scores** / **Poll coordinated slams**.
+Optional: **Export today** downloads a JSON copy. Menu → **Backup history now** / **Update recent W/P/L results**.
+
+Status bar tip: if you see **Saved locally — GitHub token missing**, history still works in this browser via TM; set the token to publish to the public History site.
 
 ### Local / file:// (optional)
 

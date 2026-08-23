@@ -196,6 +196,16 @@
     );
   }
 
+  function emitToCompanion(name, detail) {
+    const init = { detail: detail, bubbles: true, cancelable: true };
+    try {
+      window.dispatchEvent(new CustomEvent(name, init));
+    } catch (_) {}
+    try {
+      document.dispatchEvent(new CustomEvent(name, init));
+    } catch (_) {}
+  }
+
   function setStatus(kind, text, meta) {
     statusBar.classList.remove('ok', 'warn');
     if (kind) statusBar.classList.add(kind);
@@ -253,8 +263,10 @@
 
   const TILE_RANK = { 'tile-red': 0, 'tile-yellow': 1, 'tile-green': 2 };
 
-  /** 'default' | 'date' | 'move' */
+  /** 'default' | 'date' | 'move' | 'fav' */
   let sortMode = 'default';
+  /** For fav (and reusable): 'desc' = high→low, 'asc' = low→high */
+  let sortDir = 'desc';
 
   function parseGdateMs(raw) {
     if (!raw) return null;
@@ -305,6 +317,19 @@
       return rows.sort((a, b) => maxMoveAbs(b) - maxMoveAbs(a));
     }
 
+    if (sortMode === 'fav') {
+      return rows.sort((a, b) => {
+        const ra = favRatioOf(a);
+        const rb = favRatioOf(b);
+        const aOk = ra != null && Number.isFinite(ra);
+        const bOk = rb != null && Number.isFinite(rb);
+        if (!aOk && !bOk) return 0;
+        if (!aOk) return 1;
+        if (!bOk) return -1;
+        return sortDir === 'asc' ? ra - rb : rb - ra;
+      });
+    }
+
     return rows.sort((a, b) => {
       const ta = a.tile ? TILE_RANK[a.tile] : 99;
       const tb = b.tile ? TILE_RANK[b.tile] : 99;
@@ -323,8 +348,21 @@
       const mode = th.getAttribute('data-sort');
       const on = sortMode === mode;
       th.classList.toggle('sort-active', on);
-      const base = mode === 'date' ? 'Date' : 'Open → Now';
-      th.textContent = on ? base + ' ▾' : base;
+      const labels = {
+        date: 'Date',
+        move: 'Open → Now',
+        fav: 'Fav×',
+      };
+      const base = labels[mode] || mode;
+      if (!on) {
+        th.textContent = base;
+        return;
+      }
+      if (mode === 'fav') {
+        th.textContent = sortDir === 'asc' ? base + ' ▴' : base + ' ▾';
+      } else {
+        th.textContent = base + ' ▾';
+      }
     });
   }
 
@@ -523,11 +561,32 @@
     return `${(ms / 60000).toFixed(1).replace(/\.0$/, '')}m`;
   }
 
+  function fmtSlamTowardHtml(s) {
+    const team = s.towardTeam || '—';
+    const ratio = Number(s.towardRatio);
+    const pop = Number(s.towardPopular);
+    const ratioHtml =
+      Number.isFinite(ratio) && ratio > 0
+        ? `<span class="slam-zcode-ratio">${ratio.toFixed(2)}x</span>`
+        : '';
+    const popHtml =
+      Number.isFinite(pop) && pop >= 1
+        ? `<span class="popular-num" title="ML tickets popular rank">(#${Math.round(pop)})</span>`
+        : '';
+    if (!ratioHtml && !popHtml) {
+      return escapeHtml(team);
+    }
+    return (
+      `<span class="slam-toward-team">${escapeHtml(team)}</span>` +
+      `<span class="slam-zcode-meta">${ratioHtml}${popHtml}</span>`
+    );
+  }
+
   function renderSlams(payload) {
     if (!slamBody) return;
     const slams = ((payload && payload.slams) || [])
       .slice()
-      .sort((a, b) => (a.slamTime || 0) - (b.slamTime || 0));
+      .sort((a, b) => (b.slamTime || 0) - (a.slamTime || 0));
     if (!slams.length) {
       slamBody.innerHTML =
         '<tr class="empty"><td colspan="7">No coordinated slams yet. Keep the dashboard open with userscript v1.7.1+.</td></tr>';
@@ -559,7 +618,7 @@
           `<td class="slam-time">${escapeHtml(fmtSlamTime(s.slamTime))}</td>` +
           `<td><span class="${sportCls}">${escapeHtml(sport)}</span></td>` +
           `<td class="matchup">${matchup}</td>` +
-          `<td class="take-pick">${escapeHtml(s.towardTeam || '—')}</td>` +
+          `<td class="take-pick slam-toward">${fmtSlamTowardHtml(s)}</td>` +
           `<td>${books || '—'}</td>` +
           `<td class="slam-moves">${moves || '—'}</td>` +
           `<td>${escapeHtml(fmtSlamSpan(s.spanMs))}</td>` +
@@ -700,7 +759,43 @@
     renderSlams(payload);
   }
 
+  window.addEventListener('pinny-fade-backup-status', function (e) {
+    const d = (e && e.detail) || {};
+    if (d.ok) {
+      setStatus(
+        'ok',
+        d.message || 'GitHub backup saved',
+        d.meta || ''
+      );
+    } else if (d.message) {
+      setStatus('warn', d.message, d.meta || '');
+    }
+  });
+  document.addEventListener('pinny-fade-backup-status', function (e) {
+    const d = (e && e.detail) || {};
+    if (d.ok) {
+      setStatus('ok', d.message || 'GitHub backup saved', d.meta || '');
+    } else if (d.message) {
+      setStatus('warn', d.message, d.meta || '');
+    }
+  });
+
+  window.addEventListener('pinny-fade-refresh-status', function (e) {
+    const d = (e && e.detail) || {};
+    if (d.message) setStatus('ok', d.message, d.meta || '');
+  });
+  document.addEventListener('pinny-fade-refresh-status', function (e) {
+    const d = (e && e.detail) || {};
+    if (d.message) setStatus('ok', d.message, d.meta || '');
+  });
+
   window.addEventListener('pinny-fade-slate', function (e) {
+    if (e && e.detail) {
+      window.__PINNY_FADE_SLATE__ = e.detail;
+    }
+    render();
+  });
+  document.addEventListener('pinny-fade-slate', function (e) {
     if (e && e.detail) {
       window.__PINNY_FADE_SLATE__ = e.detail;
     }
@@ -710,7 +805,20 @@
   document.querySelectorAll('th.sortable').forEach((th) => {
     th.addEventListener('click', function () {
       const mode = th.getAttribute('data-sort');
-      sortMode = sortMode === mode ? 'default' : mode;
+      if (mode === 'fav') {
+        if (sortMode !== 'fav') {
+          sortMode = 'fav';
+          sortDir = 'desc';
+        } else if (sortDir === 'desc') {
+          sortDir = 'asc';
+        } else {
+          sortMode = 'default';
+          sortDir = 'desc';
+        }
+      } else {
+        sortMode = sortMode === mode ? 'default' : mode;
+        sortDir = 'desc';
+      }
       render();
     });
   });
@@ -718,6 +826,7 @@
   if (defaultSortBtn) {
     defaultSortBtn.addEventListener('click', function () {
       sortMode = 'default';
+      sortDir = 'desc';
       render();
     });
   }
@@ -727,7 +836,8 @@
       render();
       return;
     }
-    window.dispatchEvent(new CustomEvent('pinny-fade-request-refresh'));
+    setStatus('ok', 'Refreshing…', 'Bet105 + scores + coordinated slams');
+    emitToCompanion('pinny-fade-request-refresh');
     render();
   });
 
@@ -749,9 +859,7 @@
         );
         return;
       }
-      window.dispatchEvent(
-        new CustomEvent('pinny-fade-open-zcode', { detail: { sports } })
-      );
+      emitToCompanion('pinny-fade-open-zcode', { sports });
       setStatus(
         'ok',
         'Opening ZCode…',
@@ -821,24 +929,9 @@
         `Exported ${payload.games.length} games`,
         `${payload.date} · drop into history/ or rely on TM GitHub backup`
       );
-      window.dispatchEvent(
-        new CustomEvent('pinny-fade-request-backup', { detail: payload })
-      );
+      emitToCompanion('pinny-fade-request-backup', payload);
     });
   }
-
-  window.addEventListener('pinny-fade-backup-status', function (e) {
-    const d = (e && e.detail) || {};
-    if (d.ok) {
-      setStatus(
-        'ok',
-        d.message || 'GitHub backup saved',
-        d.meta || ''
-      );
-    } else if (d.message) {
-      setStatus('warn', d.message, d.meta || '');
-    }
-  });
 
   setTimeout(function () {
     if (!tmConnected() && !getPayload()) warnIfNoCompanion();

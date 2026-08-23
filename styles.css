@@ -672,6 +672,36 @@ body {
   border: 1px solid var(--border);
 }
 
+.slam-toward {
+  min-width: 9rem;
+}
+
+.slam-toward-team {
+  display: block;
+  font-weight: 600;
+}
+
+.slam-zcode-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.slam-zcode-ratio {
+  font-family: var(--mono);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.slam-toward .popular-num {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
 @media (max-width: 720px) {
   .brand h1 {
     font-size: 1.55rem;

@@ -142,11 +142,32 @@
     return `${(ms / 60000).toFixed(1).replace(/\.0$/, '')}m`;
   }
 
+  function fmtSlamTowardHtml(s) {
+    const team = s.towardTeam || '—';
+    const ratio = Number(s.towardRatio);
+    const pop = Number(s.towardPopular);
+    const ratioHtml =
+      Number.isFinite(ratio) && ratio > 0
+        ? `<span class="slam-zcode-ratio">${ratio.toFixed(2)}x</span>`
+        : '';
+    const popHtml =
+      Number.isFinite(pop) && pop >= 1
+        ? `<span class="popular-num" title="ML tickets popular rank">(#${Math.round(pop)})</span>`
+        : '';
+    if (!ratioHtml && !popHtml) {
+      return escapeHtml(team);
+    }
+    return (
+      `<span class="slam-toward-team">${escapeHtml(team)}</span>` +
+      `<span class="slam-zcode-meta">${ratioHtml}${popHtml}</span>`
+    );
+  }
+
   function renderSlams(payload) {
     if (!slamBody) return;
     const slams = ((payload && payload.slams) || [])
       .slice()
-      .sort((a, b) => (a.slamTime || 0) - (b.slamTime || 0));
+      .sort((a, b) => (b.slamTime || 0) - (a.slamTime || 0));
     if (!slams.length) {
       slamBody.innerHTML =
         '<tr class="empty"><td colspan="7">No slams in this archive.</td></tr>';
@@ -178,7 +199,7 @@
           `<td class="slam-time">${escapeHtml(fmtSlamTime(s.slamTime))}</td>` +
           `<td><span class="${sportCls}">${escapeHtml(sport)}</span></td>` +
           `<td class="matchup">${matchup}</td>` +
-          `<td class="take-pick">${escapeHtml(s.towardTeam || '—')}</td>` +
+          `<td class="take-pick slam-toward">${fmtSlamTowardHtml(s)}</td>` +
           `<td>${books || '—'}</td>` +
           `<td class="slam-moves">${moves || '—'}</td>` +
           `<td>${escapeHtml(fmtSlamSpan(s.spanMs))}</td>` +
@@ -286,36 +307,90 @@
     renderSlams(payload);
   }
 
-  async function loadIndex() {
-    const res = await fetch('history/index.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error('history/index.json missing');
-    const data = await res.json();
-    return Array.isArray(data.days) ? data.days.filter(Boolean) : [];
+  const PUBLIC_HISTORY_BASE = 'https://jacobtulster.github.io/pinny-fade';
+  const RAW_HISTORY_BASE =
+    'https://raw.githubusercontent.com/jacobtulster/pinny-fade/main';
+
+  function companionBundle() {
+    return window.__PINNY_FADE_HISTORY__ || null;
   }
 
-  async function loadDay(date) {
-    const res = await fetch(`history/${date}.json`, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`Missing history/${date}.json`);
+  function uniqDays(list) {
+    const out = [];
+    const seen = {};
+    (list || []).forEach((d) => {
+      if (!d || seen[d]) return;
+      seen[d] = true;
+      out.push(d);
+    });
+    return out;
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`${url} → ${res.status}`);
     return res.json();
   }
 
-  async function init() {
-    let days = [];
-    try {
-      days = await loadIndex();
-    } catch (e) {
-      setStatus('warn', 'No archives yet', e && e.message);
-      return;
+  async function loadIndex() {
+    const days = [];
+    const bundle = companionBundle();
+    if (bundle && Array.isArray(bundle.days)) {
+      days.push.apply(days, bundle.days);
     }
 
+    const urls = [
+      'history/index.json',
+      `${PUBLIC_HISTORY_BASE}/history/index.json`,
+      `${RAW_HISTORY_BASE}/history/index.json`,
+    ];
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        const data = await fetchJson(urls[i]);
+        if (data && Array.isArray(data.days)) {
+          days.push.apply(days, data.days.filter(Boolean));
+        }
+      } catch (_) {}
+    }
+
+    return uniqDays(days).sort(function (a, b) {
+      return a < b ? 1 : a > b ? -1 : 0;
+    });
+  }
+
+  async function loadDay(date) {
+    const bundle = companionBundle();
+    if (bundle && bundle.byDate && bundle.byDate[date]) {
+      return bundle.byDate[date];
+    }
+
+    const urls = [
+      `history/${date}.json`,
+      `${PUBLIC_HISTORY_BASE}/history/${date}.json`,
+      `${RAW_HISTORY_BASE}/history/${date}.json`,
+    ];
+    let lastErr = null;
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        return await fetchJson(urls[i]);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error(`Missing history/${date}.json`);
+  }
+
+  async function applyDays(days) {
     daySelect.innerHTML = '';
     if (!days.length) {
       daySelect.innerHTML = '<option value="">—</option>';
       setStatus(
         'warn',
         'No archive days yet',
-        'Configure GitHub backup in Tampermonkey and keep the live dashboard open'
+        'Keep the live slate open with userscript v1.7.5+ · TM menu → Set GitHub token to publish'
       );
+      histBody.innerHTML =
+        '<tr class="empty"><td colspan="11">No archive days yet. Open the live dashboard with Tampermonkey — archives save locally even before GitHub is configured.</td></tr>';
       return;
     }
 
@@ -331,24 +406,70 @@
     if (want && days.indexOf(want) >= 0) daySelect.value = want;
     else daySelect.value = days[0];
 
-    async function showSelected() {
-      const date = daySelect.value;
-      if (!date) return;
-      try {
-        const payload = await loadDay(date);
-        renderDay(payload);
-        const url = new URL(location.href);
-        url.searchParams.set('date', date);
-        history.replaceState(null, '', url.pathname + url.search);
-      } catch (e) {
-        histBody.innerHTML =
-          '<tr class="empty"><td colspan="11">Failed to load this day.</td></tr>';
-        setStatus('warn', 'Load failed', e && e.message);
-      }
-    }
-
-    daySelect.addEventListener('change', showSelected);
     await showSelected();
+  }
+
+  async function showSelected() {
+    const date = daySelect.value;
+    if (!date) return;
+    try {
+      const payload = await loadDay(date);
+      renderDay(payload);
+      const url = new URL(location.href);
+      url.searchParams.set('date', date);
+      history.replaceState(null, '', url.pathname + url.search);
+    } catch (e) {
+      histBody.innerHTML =
+        '<tr class="empty"><td colspan="11">Failed to load this day.</td></tr>';
+      setStatus('warn', 'Load failed', e && e.message);
+    }
+  }
+
+  async function init() {
+    daySelect.addEventListener('change', showSelected);
+
+    window.addEventListener('pinny-fade-history', async function (e) {
+      if (e && e.detail) window.__PINNY_FADE_HISTORY__ = e.detail;
+      try {
+        const days = await loadIndex();
+        await applyDays(days);
+      } catch (_) {}
+    });
+    document.addEventListener('pinny-fade-history', async function (e) {
+      if (e && e.detail) window.__PINNY_FADE_HISTORY__ = e.detail;
+      try {
+        const days = await loadIndex();
+        await applyDays(days);
+      } catch (_) {}
+    });
+
+    window.addEventListener('pinny-fade-backup-status', function (e) {
+      const d = (e && e.detail) || {};
+      if (d.message) setStatus(d.ok ? 'ok' : 'warn', d.message, d.meta || '');
+    });
+    document.addEventListener('pinny-fade-backup-status', function (e) {
+      const d = (e && e.detail) || {};
+      if (d.message) setStatus(d.ok ? 'ok' : 'warn', d.message, d.meta || '');
+    });
+
+    let days = [];
+    try {
+      days = await loadIndex();
+    } catch (e) {
+      setStatus('warn', 'No archives yet', e && e.message);
+      return;
+    }
+    await applyDays(days);
+
+    // Companion may inject a moment later
+    setTimeout(async function () {
+      try {
+        const again = await loadIndex();
+        if (again.length && again.join('|') !== days.join('|')) {
+          await applyDays(again);
+        }
+      } catch (_) {}
+    }, 1500);
   }
 
   init();
