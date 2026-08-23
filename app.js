@@ -433,8 +433,6 @@
 
     if (underrated) {
       map[underrated.team] = 'ratio-lo';
-    } else if (g.publicTeam && Number.isFinite(pub) && pub < 1 && favoriteIsAway(g) == null) {
-      map[g.publicTeam] = 'ratio-lo';
     }
 
     return map;
@@ -555,29 +553,74 @@
     return `${fmtAmerican(from)}→${fmtAmerican(to)}`;
   }
 
+  /**
+   * Ratio badge color:
+   * - green: underrated ML favorite (ratio &lt; 1)
+   * - yellow: 2.0–4.99x
+   * - red: 5.0x+
+   */
+  function teamSame(a, b, g) {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const au = String(a).trim().toUpperCase();
+    const bu = String(b).trim().toUpperCase();
+    if (au === bu) return true;
+    if (au.indexOf(bu) >= 0 || bu.indexOf(au) >= 0) return true;
+    const sides = [
+      [g.away, g.awayAbbr],
+      [g.home, g.homeAbbr],
+    ];
+    let aSide = false;
+    let bSide = false;
+    sides.forEach(([full, abbr]) => {
+      const fu = String(full || '').toUpperCase();
+      const ab = String(abbr || '').toUpperCase();
+      if (au === fu || au === ab || fu.indexOf(au) >= 0) aSide = true;
+      if (bu === fu || bu === ab || fu.indexOf(bu) >= 0) bSide = true;
+    });
+    return aSide && bSide;
+  }
+
+  function ratioBandClass(ratio, game, team) {
+    const r = Number(ratio);
+    if (!Number.isFinite(r) || r <= 0) return '';
+    if (game && team) {
+      const underrated = underratedFavorite(game);
+      if (underrated && teamSame(team, underrated.team, game)) return 'ratio-lo';
+    } else if (game && r < 1) {
+      return 'ratio-lo';
+    }
+    if (r >= 5) return 'ratio-hi';
+    if (r >= 2) return 'ratio-mid';
+    return '';
+  }
+
+  function fmtRatioBadge(ratio, band) {
+    if (ratio == null || !Number.isFinite(Number(ratio))) return '—';
+    const cls = band ? `ratio-badge ${band}` : 'ratio-badge';
+    return `<span class="${cls}">${Number(ratio).toFixed(2)}x</span>`;
+  }
+
   function fmtSlamSpan(ms) {
     if (!Number.isFinite(ms) || ms < 0) return '—';
     if (ms < 60000) return `${Math.round(ms / 1000)}s`;
     return `${(ms / 60000).toFixed(1).replace(/\.0$/, '')}m`;
   }
 
-  function ratioBandClass(ratio) {
-    const r = Number(ratio);
-    if (!Number.isFinite(r) || r <= 0) return '';
-    if (r >= 5) return 'ratio-hi';
-    if (r >= 2) return 'ratio-mid';
-    return 'ratio-lo';
-  }
-
-  function fmtSlamTowardHtml(s) {
+  function fmtSlamTowardHtml(s, games) {
     const team = s.towardTeam || '—';
     const ratio = Number(s.towardRatio);
     const pop = Number(s.towardPopular);
-    const band = ratioBandClass(ratio);
+    const game = (games || []).find(
+      (g) =>
+        (g.eventId && s.eventId && String(g.eventId) === String(s.eventId)) ||
+        ((g.sport || '') === (s.sport || '') &&
+          String(g.away || '').toUpperCase() === String(s.away || '').toUpperCase() &&
+          String(g.home || '').toUpperCase() === String(s.home || '').toUpperCase())
+    );
+    const band = ratioBandClass(ratio, game, team);
     const ratioHtml =
-      Number.isFinite(ratio) && ratio > 0
-        ? `<span class="slam-zcode-ratio${band ? ' ' + band : ''}">${ratio.toFixed(2)}x</span>`
-        : '';
+      Number.isFinite(ratio) && ratio > 0 ? fmtRatioBadge(ratio, band) : '';
     const popHtml =
       Number.isFinite(pop) && pop >= 1
         ? `<span class="popular-num" title="ML tickets popular rank">(#${Math.round(pop)})</span>`
@@ -593,6 +636,7 @@
 
   function renderSlams(payload) {
     if (!slamBody) return;
+    const games = (payload && payload.games) || [];
     const slams = ((payload && payload.slams) || [])
       .slice()
       .sort((a, b) => (b.slamTime || 0) - (a.slamTime || 0));
@@ -627,7 +671,7 @@
           `<td class="slam-time">${escapeHtml(fmtSlamTime(s.slamTime))}</td>` +
           `<td><span class="${sportCls}">${escapeHtml(sport)}</span></td>` +
           `<td class="matchup">${matchup}</td>` +
-          `<td class="take-pick slam-toward">${fmtSlamTowardHtml(s)}</td>` +
+          `<td class="take-pick slam-toward">${fmtSlamTowardHtml(s, games)}</td>` +
           `<td>${books || '—'}</td>` +
           `<td class="slam-moves">${moves || '—'}</td>` +
           `<td>${escapeHtml(fmtSlamSpan(s.spanMs))}</td>` +
@@ -755,7 +799,7 @@
               return `<span class="popular-num" title="ML tickets popular rank">(#${pop})</span>`;
             })()
           }</span></td>` +
-          `<td class="ratio-val">${favRatio != null ? favRatio.toFixed(2) : '—'}x</td>` +
+          `<td class="ratio-val">${fmtRatioBadge(favRatio, ratioBandClass(favRatio, g))}</td>` +
           `<td class="take-pick">${teamHtml(takeTeam, hl)}</td>` +
           `<td class="odds">${oddsFlow}</td>` +
           `<td>${escapeHtml(moveLabel)}</td>` +
