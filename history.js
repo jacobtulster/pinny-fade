@@ -142,13 +142,22 @@
     return `${(ms / 60000).toFixed(1).replace(/\.0$/, '')}m`;
   }
 
+  function ratioBandClass(ratio) {
+    const r = Number(ratio);
+    if (!Number.isFinite(r) || r <= 0) return '';
+    if (r >= 5) return 'ratio-hi';
+    if (r >= 2) return 'ratio-mid';
+    return 'ratio-lo';
+  }
+
   function fmtSlamTowardHtml(s) {
     const team = s.towardTeam || '—';
     const ratio = Number(s.towardRatio);
     const pop = Number(s.towardPopular);
+    const band = ratioBandClass(ratio);
     const ratioHtml =
       Number.isFinite(ratio) && ratio > 0
-        ? `<span class="slam-zcode-ratio">${ratio.toFixed(2)}x</span>`
+        ? `<span class="slam-zcode-ratio${band ? ' ' + band : ''}">${ratio.toFixed(2)}x</span>`
         : '';
     const popHtml =
       Number.isFinite(pop) && pop >= 1
