@@ -223,10 +223,10 @@
       .filter((g) => {
         const r1 = Number(g.publicRatio1);
         const r2 = Number(g.publicRatio2);
-        const fav = Number(g.favRatio);
+        // Need at least one real public-ratio side. favRatio of 0 means “no data on
+        // the fav side” (common overnight / early slate) — do NOT drop the game.
         const okSide = (Number.isFinite(r1) && r1 > 0) || (Number.isFinite(r2) && r2 > 0);
-        const okFav = !Number.isFinite(fav) || fav > 0;
-        if (!okSide || !okFav) return false;
+        if (!okSide) return false;
         const start = String(g.gdate || '').trim();
         if (!start) return true;
         const key = [
@@ -720,16 +720,40 @@
         ? payload.sportsPresent
         : [...new Set(games.map((g) => g.sport).filter(Boolean))]) || [];
     const nSlams = (payload.slams && payload.slams.length) || 0;
+    const zcodeStale = ageSec != null && ageSec > 600;
+
+    if (!games.length) {
+      setStatus(
+        'warn',
+        zcodeStale
+          ? 'ZCode data is stale — reopen ZCode tabs'
+          : 'No games with public ratios yet',
+        [
+          sports.length ? sports.join('+') : null,
+          ageSec != null ? `ZCode ${ageSec}s ago` : null,
+          pinnyAge != null ? `Bet105 ${pinnyAge}s ago` : 'Bet105 pending',
+          'Click Open ZCode tabs · stay logged in · leave tabs open',
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      );
+      slateBody.innerHTML =
+        '<tr class="empty"><td colspan="10">No games to show. Click <b>Open ZCode tabs</b>, stay logged in, and leave those tabs open (sleeping PC often pauses scrapes).</td></tr>';
+      renderSlams(payload);
+      return;
+    }
 
     setStatus(
-      'ok',
+      zcodeStale ? 'warn' : 'ok',
       `${games.length} games · ${nRed} red · ${nYellow} yellow · ${nGreen} green` +
-        (nSlams ? ` · ${nSlams} slam${nSlams === 1 ? '' : 's'}` : ''),
+        (nSlams ? ` · ${nSlams} slam${nSlams === 1 ? '' : 's'}` : '') +
+        (zcodeStale ? ' · ZCode stale' : ''),
       [
         sports.length ? sports.join('+') : null,
         ageSec != null ? `ZCode ${ageSec}s ago` : null,
         pinnyAge != null ? `Bet105 ${pinnyAge}s ago` : 'Bet105 pending',
         scoreAge != null ? `Scores ${scoreAge}s ago` : null,
+        zcodeStale ? 'Re-open ZCode tabs to resume' : null,
         payload.pinnyError ? `Bet105: ${payload.pinnyError}` : null,
       ]
         .filter(Boolean)

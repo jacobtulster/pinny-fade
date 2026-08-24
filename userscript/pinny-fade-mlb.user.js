@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pinny Fade — ZCode + Bet105 (MLB/NFL/WNBA)
 // @namespace    https://github.com/local/pinny-fade
-// @version      1.7.6
+// @version      1.7.7
 // @description  Scrape ZCode LR; Bet105 open→current; live scores; multi-book slam tracker; GitHub history
 // @author       You
 // @match        https://zcodesystem.com/linereversals.php*
@@ -780,7 +780,12 @@
       const prev = GM_getValue(ZCODE_SPORT_KEYS[sport], []) || [];
       const nextOk = next.filter(hasZcodeRatioData).length;
       const prevOk = Array.isArray(prev) ? prev.filter(hasZcodeRatioData).length : 0;
-      // ZCode AJAX refreshes briefly leave a thin DOM — don't clobber a full slate
+      // ZCode AJAX refreshes / sleep / login walls briefly leave a thin DOM —
+      // never clobber a good slate with empty or much-thinner ratio data.
+      if (prevOk > 0 && nextOk === 0) {
+        log('Skip empty ZCode scrape', sport, 'kept', prevOk);
+        return;
+      }
       if (prevOk >= 3 && nextOk < Math.ceil(prevOk * 0.75)) {
         log(
           'Skip partial ZCode scrape',
@@ -831,6 +836,15 @@
     };
     tick();
     setInterval(tick, ZCODE_SCRAPE_MS);
+    try {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          log('ZCode tab visible — scrape now');
+          tick();
+        }
+      });
+      window.addEventListener('focus', () => tick());
+    } catch (_) {}
     try {
       if (typeof GM_addValueChangeListener === 'function') {
         GM_addValueChangeListener(ZCODE_REFRESH_KEY, () => {
@@ -1563,7 +1577,8 @@
       const hLine = Number.isFinite(currHome) ? currHome : openHome;
       if (Number.isFinite(aLine) && Number.isFinite(hLine) && aLine !== hLine) {
         favRatio = aLine < hLine ? r1 : r2;
-        if (!Number.isFinite(favRatio)) favRatio = null;
+        // 0.00x = no ZCode ticket data on that side — treat as missing
+        if (!Number.isFinite(favRatio) || favRatio <= 0) favRatio = null;
       }
 
       const sport = z.sport || 'MLB';
@@ -1955,6 +1970,32 @@
         document.body.appendChild(b);
       }
     } catch (_) {}
+
+    // After sleep / overnight, Chromium throttles background ZCode tabs. On wake:
+    // poke scrapers + Bet105 so the slate comes back without a manual refresh.
+    const wakeRefresh = () => {
+      const zAge = Date.now() - (Number(GM_getValue(ZCODE_TS_KEY, 0)) || 0);
+      if (zAge > 5 * 60 * 1000) {
+        log('Wake/stale ZCode detected', Math.round(zAge / 1000) + 's');
+        GM_setValue(ZCODE_REFRESH_KEY, Date.now());
+        emitRefreshStatus(
+          'ZCode stale — pinging open tabs',
+          'If empty, click Open ZCode tabs (leave them open overnight)'
+        );
+        pollPinnyOdds();
+      }
+      publishSlate();
+    };
+    try {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') wakeRefresh();
+      });
+      window.addEventListener('focus', wakeRefresh);
+    } catch (_) {}
+    setInterval(() => {
+      const zAge = Date.now() - (Number(GM_getValue(ZCODE_TS_KEY, 0)) || 0);
+      if (zAge > 10 * 60 * 1000) GM_setValue(ZCODE_REFRESH_KEY, Date.now());
+    }, 60 * 1000);
 
     runHistoryScheduler();
   }
@@ -3185,5 +3226,5 @@
   runDashboardBridge();
   runHistoryPageBridge();
   runOddsScoresWatch();
-  log('Ready (MLB + NFL + WNBA · scores + slams + history v1.7.6)');
+  log('Ready (MLB + NFL + WNBA · scores + slams + history v1.7.7)');
 })();
