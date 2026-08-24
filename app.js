@@ -462,14 +462,15 @@
     return null;
   }
 
-  /** Favorite's ZCode % ratio (ML fav from Bet105). */
+  /** Favorite's ZCode % ratio (ML fav from Bet105). 0.00x = missing data. */
   function favRatioOf(g) {
-    if (Number.isFinite(Number(g.favRatio))) return Number(g.favRatio);
+    const stored = Number(g.favRatio);
+    if (Number.isFinite(stored) && stored > 0) return stored;
     const r1 = Number(g.publicRatio1);
     const r2 = Number(g.publicRatio2);
     const favAway = favoriteIsAway(g);
-    if (favAway === true && Number.isFinite(r1)) return r1;
-    if (favAway === false && Number.isFinite(r2)) return r2;
+    if (favAway === true && Number.isFinite(r1) && r1 > 0) return r1;
+    if (favAway === false && Number.isFinite(r2) && r2 > 0) return r2;
     return null;
   }
 
@@ -596,7 +597,9 @@
   }
 
   function fmtRatioBadge(ratio, band) {
-    if (ratio == null || !Number.isFinite(Number(ratio))) return '—';
+    if (ratio == null || !Number.isFinite(Number(ratio)) || Number(ratio) <= 0) {
+      return '—';
+    }
     const cls = band ? `ratio-badge ${band}` : 'ratio-badge';
     return `<span class="${cls}">${Number(ratio).toFixed(2)}x</span>`;
   }

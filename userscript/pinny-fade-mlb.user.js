@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pinny Fade — ZCode + Bet105 (MLB/NFL/WNBA)
 // @namespace    https://github.com/local/pinny-fade
-// @version      1.7.7
+// @version      1.7.8
 // @description  Scrape ZCode LR; Bet105 open→current; live scores; multi-book slam tracker; GitHub history
 // @author       You
 // @match        https://zcodesystem.com/linereversals.php*
@@ -767,6 +767,23 @@
     return readAllZcodeGames();
   }
 
+  function dominantGdateDay(games) {
+    const counts = {};
+    let best = '';
+    let bestN = 0;
+    (games || []).forEach((g) => {
+      const raw = String((g && g.gdate) || '').trim();
+      const day = raw.slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+      counts[day] = (counts[day] || 0) + 1;
+      if (counts[day] > bestN) {
+        bestN = counts[day];
+        best = day;
+      }
+    });
+    return best;
+  }
+
   function saveZcodeScraped(scraped) {
     const bySport = {};
     (scraped || []).forEach((g) => {
@@ -780,13 +797,23 @@
       const prev = GM_getValue(ZCODE_SPORT_KEYS[sport], []) || [];
       const nextOk = next.filter(hasZcodeRatioData).length;
       const prevOk = Array.isArray(prev) ? prev.filter(hasZcodeRatioData).length : 0;
-      // ZCode AJAX refreshes / sleep / login walls briefly leave a thin DOM —
-      // never clobber a good slate with empty or much-thinner ratio data.
+      const nextDay = dominantGdateDay(next);
+      const prevDay = dominantGdateDay(prev);
+      const dayRollover = !!(nextDay && prevDay && nextDay !== prevDay);
+
+      // Never replace a good slate with a transient empty DOM (AJAX / login wall).
       if (prevOk > 0 && nextOk === 0) {
         log('Skip empty ZCode scrape', sport, 'kept', prevOk);
         return;
       }
-      if (prevOk >= 3 && nextOk < Math.ceil(prevOk * 0.75)) {
+
+      // Same calendar day: reject thin scrapes (partial AJAX). Different day:
+      // always accept — overnight rollover legitimately shrinks the slate (e.g. 15 → 2).
+      if (
+        !dayRollover &&
+        prevOk >= 3 &&
+        nextOk < Math.ceil(prevOk * 0.75)
+      ) {
         log(
           'Skip partial ZCode scrape',
           sport,
@@ -796,6 +823,10 @@
           nextOk
         );
         return;
+      }
+
+      if (dayRollover) {
+        log('ZCode day rollover', sport, prevDay, '→', nextDay, 'games', next.length);
       }
       writeZcodeSport(sport, next);
       wrote += next.length;
@@ -819,6 +850,16 @@
     if (!/linereversals\.php/i.test(location.pathname + location.search)) return;
 
     log('ZCode scrape armed');
+    try {
+      if (!document.getElementById('pinny-fade-tm-badge')) {
+        const b = document.createElement('div');
+        b.id = 'pinny-fade-tm-badge';
+        b.textContent = 'Pinny Fade · ZCode scrape';
+        b.style.cssText =
+          'position:fixed;bottom:12px;right:12px;z-index:99999;padding:6px 10px;border-radius:8px;background:#2dd4a8;color:#041018;font:600 12px/1.2 Segoe UI,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35)';
+        document.body.appendChild(b);
+      }
+    } catch (_) {}
     const tick = () => {
       try {
         const scraped = scrapeZcodeGames();
@@ -3226,5 +3267,5 @@
   runDashboardBridge();
   runHistoryPageBridge();
   runOddsScoresWatch();
-  log('Ready (MLB + NFL + WNBA · scores + slams + history v1.7.7)');
+  log('Ready (MLB + NFL + WNBA · scores + slams + history v1.7.8)');
 })();
