@@ -214,6 +214,145 @@ function isPregameEvent(ev, now) {
   return start > 0 && start > now;
 }
 
+const ESPN_PATHS = {
+  NFL: 'football/nfl',
+  NCAAF: 'football/college-football',
+  WNBA: 'basketball/wnba',
+  NBA: 'basketball/nba',
+  NHL: 'hockey/nhl',
+};
+
+function etYmd(shiftDays) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = {};
+  fmt.formatToParts(new Date()).forEach((p) => {
+    parts[p.type] = p.value;
+  });
+  const utc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day) + (shiftDays || 0)
+  );
+  const d = new Date(utc);
+  return (
+    d.getUTCFullYear() +
+    '-' +
+    String(d.getUTCMonth() + 1).padStart(2, '0') +
+    '-' +
+    String(d.getUTCDate()).padStart(2, '0')
+  );
+}
+
+function sameMatchup(teams, live) {
+  if (!teams || !live) return false;
+  const abbrDirect =
+    namesMatch(teams.awayAbbr, live.awayAbbr) && namesMatch(teams.homeAbbr, live.homeAbbr);
+  const abbrFlip =
+    namesMatch(teams.awayAbbr, live.homeAbbr) && namesMatch(teams.homeAbbr, live.awayAbbr);
+  if (abbrDirect || abbrFlip) return true;
+  return (
+    (namesMatch(teams.awayName, live.awayName) && namesMatch(teams.homeName, live.homeName)) ||
+    (namesMatch(teams.awayName, live.homeName) && namesMatch(teams.homeName, live.awayName))
+  );
+}
+
+function matchupIsLive(teams, livePairs) {
+  return (livePairs || []).some((g) => sameMatchup(teams, g));
+}
+
+function mlbGameIsLive(game) {
+  const abstract = String((game && game.status && game.status.abstractGameState) || '').toLowerCase();
+  const detailed = String((game && game.status && game.status.detailedState) || '').toLowerCase();
+  const coded = String((game && game.status && game.status.codedGameState) || '');
+  return (
+    abstract === 'live' ||
+    coded === 'I' ||
+    detailed.includes('in progress') ||
+    detailed.includes('manager challenge')
+  );
+}
+
+async function fetchMlbLivePairs() {
+  const pairs = [];
+  await mapPool([-1, 0, 1], 3, async (shift) => {
+    const date = etYmd(shift);
+    try {
+      const data = await kalshiGetJson(
+        'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=' +
+          encodeURIComponent(date) +
+          '&hydrate=team,linescore'
+      );
+      (data.dates || []).forEach((day) => {
+        (day.games || []).forEach((game) => {
+          if (!mlbGameIsLive(game)) return;
+          const away = game.teams && game.teams.away && game.teams.away.team;
+          const home = game.teams && game.teams.home && game.teams.home.team;
+          pairs.push({
+            awayAbbr: (away && away.abbreviation) || '',
+            homeAbbr: (home && home.abbreviation) || '',
+            awayName: (away && (away.teamName || away.name)) || '',
+            homeName: (home && (home.teamName || home.name)) || '',
+          });
+        });
+      });
+    } catch (err) {
+      log('mlb live fail', date, err.message || err);
+    }
+  });
+  return pairs;
+}
+
+async function fetchEspnLivePairs(sportId) {
+  const path = ESPN_PATHS[sportId];
+  if (!path) return [];
+  try {
+    const data = await kalshiGetJson(
+      'https://site.api.espn.com/apis/site/v2/sports/' + path + '/scoreboard'
+    );
+    const pairs = [];
+    (data.events || []).forEach((ev) => {
+      const comp = (ev.competitions && ev.competitions[0]) || null;
+      if (!comp) return;
+      const st = (comp.status && comp.status.type) || {};
+      if (String(st.state || '').toLowerCase() !== 'in') return;
+      const competitors = comp.competitors || [];
+      let away = null;
+      let home = null;
+      competitors.forEach((c) => {
+        if (c.homeAway === 'away') away = c;
+        if (c.homeAway === 'home') home = c;
+      });
+      if (!away || !home) return;
+      pairs.push({
+        awayAbbr: (away.team && away.team.abbreviation) || '',
+        homeAbbr: (home.team && home.team.abbreviation) || '',
+        awayName:
+          (away.team && (away.team.shortDisplayName || away.team.displayName)) || '',
+        homeName:
+          (home.team && (home.team.shortDisplayName || home.team.displayName)) || '',
+      });
+    });
+    return pairs;
+  } catch (err) {
+    log('espn live fail', sportId, err.message || err);
+    return [];
+  }
+}
+
+async function loadLiveBoards(sportIds) {
+  const out = {};
+  await mapPool(sportIds, 3, async (id) => {
+    if (id === 'MLB') out[id] = await fetchMlbLivePairs();
+    else out[id] = await fetchEspnLivePairs(id);
+  });
+  return out;
+}
+
 function kalshiEventUrl(series, eventTicker) {
   if (!series || !eventTicker || Array.isArray(series)) return '';
   return (
@@ -432,7 +571,7 @@ function mlUnfilled(m, books) {
   return fp ? bookDollars(fp.yes_dollars) : fallbackMlBook(m);
 }
 
-function buildRow(sport, ev, books) {
+function buildRow(sport, ev, books, livePairs) {
   const teams = parseEventTeams(ev);
   const series = seriesTickerOf(sport, ev);
   const url = kalshiEventUrl(series, ev.event_ticker);
@@ -455,6 +594,7 @@ function buildRow(sport, ev, books) {
       matchup,
       url,
       startMs: eventStartMs(ev),
+      live: matchupIsLive(teams, livePairs),
       line: favoriteSpreadLabel(
         { abbr: awayAbbr, line: sides.away.line },
         { abbr: homeAbbr, line: sides.home.line }
@@ -503,12 +643,13 @@ function buildRow(sport, ev, books) {
     matchup,
     url,
     startMs: eventStartMs(ev),
+    live: matchupIsLive(teams, livePairs),
     line: sport.kind === 'ml3' ? 'Moneyline (1X2)' : sport.id === 'TENNIS' ? 'Match winner' : 'Moneyline',
     sides,
   };
 }
 
-async function loadSport(sport) {
+async function loadSport(sport, livePairs) {
   const packs = await mapPool(seriesListOf(sport), 2, async (series) => {
     try {
       const events = await fetchAllEvents(series);
@@ -528,8 +669,18 @@ async function loadSport(sport) {
   if (!events.length) return [];
 
   const now = Date.now();
-  const watch = cfg.pregameOnly ? events.filter((ev) => isPregameEvent(ev, now)) : events;
-  if (cfg.pregameOnly) {
+  let watch = cfg.pregameOnly ? events.filter((ev) => isPregameEvent(ev, now)) : events;
+  if (cfg.pregameOnly && livePairs && livePairs.length) {
+    const before = watch.length;
+    watch = watch.filter((ev) => !matchupIsLive(parseEventTeams(ev), livePairs));
+    log(
+      sport.id,
+      'pregame',
+      watch.length + '/' + events.length,
+      'live-skip',
+      before - watch.length
+    );
+  } else if (cfg.pregameOnly) {
     log(sport.id, 'pregame', watch.length + '/' + events.length);
   }
   if (!watch.length) return [];
@@ -559,14 +710,15 @@ async function loadSport(sport) {
     log('books fail', sport.id, err.message || err);
   }
 
-  return watch.map((ev) => buildRow(sport, ev, books)).filter(Boolean);
+  return watch.map((ev) => buildRow(sport, ev, books, livePairs)).filter(Boolean);
 }
 
 async function loadAllRows() {
   const wanted = ALL_SPORTS.filter((s) => cfg.sports.includes(s.id));
+  const liveBySport = cfg.pregameOnly ? await loadLiveBoards(wanted.map((s) => s.id)) : {};
   const rows = [];
   await mapPool(wanted, SPORT_CONCURRENCY, async (sport) => {
-    const sportRows = await loadSport(sport);
+    const sportRows = await loadSport(sport, liveBySport[sport.id] || []);
     rows.push.apply(rows, sportRows);
   });
   return rows;
@@ -619,7 +771,7 @@ async function applyRows(rows) {
 
   const now = Date.now();
   rows.forEach((row) => {
-    if (cfg.pregameOnly && (!row.startMs || row.startMs <= now)) return;
+    if (cfg.pregameOnly && (row.live || !row.startMs || row.startMs <= now)) return;
     row.sides.forEach((side) => {
       const key = snapKey(row, side);
       seen.add(key);
