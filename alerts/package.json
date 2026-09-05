@@ -1,0 +1,16 @@
+{
+  "name": "pinny-fade-kalshi-watch",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Poll Kalshi resting-book $ and ping Discord on big appear/drop moves",
+  "main": "kalshi-watch.js",
+  "scripts": {
+    "start": "node kalshi-watch.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  }
+}
