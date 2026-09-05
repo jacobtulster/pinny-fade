@@ -68,7 +68,7 @@ If you do not see Integrations, you need **Manage Webhooks** on that channel (ow
 
 ### 2. Put the watcher on Railway (always on)
 
-The watcher is [`alerts/kalshi-watch.js`](alerts/kalshi-watch.js). It polls Kalshi every ~45s and posts when a side’s **unfilled $** jumps or drops by **$100k** (default). Spread alerts name the **favorite** (`DUKE -9.5`) and each side’s own number (`DUKE -9.5` vs `TULN +9.5`). A drop means that side’s resting bids shrank — if hit, someone took the other side; cancelled bids look the same. **Pregame only** — start time is the ticker clock (first pitch / kickoff), not Kalshi’s `occurrence_datetime` (that is often estimated game end). Once that start has passed, the game is ignored. First cycle is silent (seed).
+The watcher is [`alerts/kalshi-watch.js`](alerts/kalshi-watch.js). It polls Kalshi every ~45s and posts when a side’s **unfilled $** jumps or drops by **$100k** (default). Spread alerts name the **favorite** (`DUKE -9.5`) and each side’s own number (`DUKE -9.5` vs `TULN +9.5`). A drop of $205k on Duke -9.5 posts **Someone took TULN +9.5 for $205k**. **Pregame only** — start time is the ticker clock (first pitch / kickoff), not Kalshi’s `occurrence_datetime` (that is often estimated game end). Once that start has passed, the game is ignored. First cycle is silent (seed).
 
 1. Push this repo to GitHub (the `alerts/` folder must be on the branch Railway uses).
 2. [Railway](https://railway.app) → New Project → Deploy from GitHub repo → this repo.

@@ -649,18 +649,16 @@ async function applyRows(rows) {
 
   for (const a of alerts) {
     const appear = a.kind === 'appear';
-    const hint = appear
-      ? 'New resting bids to buy **' + a.side.label + '**.'
-      : 'If hit, someone took **' +
-        (a.side.other || 'the other side') +
-        '**. Pulled/cancelled bids look the same.';
+    const move = fmtMoney(Math.abs(a.delta));
+    const action = appear
+      ? 'Someone posted **' + a.side.label + '** for ' + move
+      : 'Someone took **' + (a.side.other || 'the other side') + '** for ' + move;
     const lines = [
       '**' + (appear ? 'Wall appeared' : 'Wall dropped') + '** · ' + a.row.sportId,
       a.row.matchup,
       'Market: **' + a.row.line + '**',
-      '**' + a.side.label + '** resting bids ' + (appear ? 'appeared' : 'dropped'),
+      action,
       fmtMoney(a.prev) + ' → ' + fmtMoney(a.next) + '  (' + (a.delta > 0 ? '+' : '') + fmtMoney(a.delta) + ')',
-      hint,
       a.row.url || '',
     ].filter(Boolean);
     try {
