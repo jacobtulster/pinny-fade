@@ -68,7 +68,7 @@ If you do not see Integrations, you need **Manage Webhooks** on that channel (ow
 
 ### 2. Put the watcher on Railway (always on)
 
-The watcher is [`alerts/kalshi-watch.js`](alerts/kalshi-watch.js). It polls Kalshi every ~45s and posts when a side’s **unfilled $** jumps or drops by **$100k** (default). First cycle is silent (seed). A drop cannot tell fill vs cancel — only that the resting book changed.
+The watcher is [`alerts/kalshi-watch.js`](alerts/kalshi-watch.js). It polls Kalshi every ~45s and posts when a side’s **unfilled $** jumps or drops by **$100k** (default). **Pregame only** — once the listed start time has passed, that game is ignored. First cycle is silent (seed). A drop cannot tell fill vs cancel — only that the resting book changed.
 
 1. Push this repo to GitHub (the `alerts/` folder must be on the branch Railway uses).
 2. [Railway](https://railway.app) → New Project → Deploy from GitHub repo → this repo.
@@ -82,6 +82,7 @@ The watcher is [`alerts/kalshi-watch.js`](alerts/kalshi-watch.js). It polls Kals
 | `DISCORD_WEBHOOK_URL` | the webhook URL from step 1 |
 | `ALERT_DELTA_USD` | `100000` (optional) |
 | `KALSHI_SPORTS` | `NFL,NCAAF,MLB,WNBA` (optional) |
+| `PREGAME_ONLY` | `1` (default; skip live games) |
 | `DISCORD_USER_IDS` | leave unset (optional `@` later) |
 
 5. Deploy. You should get one **“watcher is up”** message in the channel (no ping). After that, only $100k appear/drop moves.

@@ -51,6 +51,7 @@ const cfg = {
     .split(',')
     .map((s) => s.trim().toUpperCase())
     .filter(Boolean),
+  pregameOnly: !/^(0|false|no|off)$/i.test(String(process.env.PREGAME_ONLY || '1').trim()),
 };
 
 const snapshot = new Map();
@@ -113,6 +114,79 @@ function seriesListOf(sport) {
 
 function seriesTickerOf(sport, ev) {
   return (ev && ev._series) || (Array.isArray(sport.series) ? sport.series[0] : sport.series);
+}
+
+const MONTHS = {
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
+};
+
+function etLocalMs(year, monthIndex, day, hour, minute) {
+  const wanted = Date.UTC(year, monthIndex, day, hour, minute, 0);
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  let guess = wanted;
+  for (let i = 0; i < 4; i++) {
+    const parts = {};
+    fmt.formatToParts(new Date(guess)).forEach((p) => {
+      parts[p.type] = p.value;
+    });
+    const got = Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour) % 24,
+      Number(parts.minute),
+      Number(parts.second)
+    );
+    guess += wanted - got;
+  }
+  return guess;
+}
+
+function parseTickerStartMs(ticker) {
+  const m = String(ticker || '').match(/-(\d{2})([A-Za-z]{3})(\d{2})(\d{4})/);
+  if (!m) return 0;
+  const year = 2000 + Number(m[1]);
+  const mo = MONTHS[m[2].toLowerCase()];
+  const day = Number(m[3]);
+  const hh = Number(m[4].slice(0, 2));
+  const mi = Number(m[4].slice(2, 4));
+  if (mo == null || !day || hh > 23 || mi > 59) return 0;
+  return etLocalMs(year, mo, day, hh, mi);
+}
+
+function eventStartMs(ev) {
+  const markets = (ev && ev.markets) || [];
+  for (let i = 0; i < markets.length; i++) {
+    const raw = markets[i] && markets[i].occurrence_datetime;
+    const t = Date.parse(raw);
+    if (Number.isFinite(t) && t > 0) return t;
+  }
+  return parseTickerStartMs(ev && ev.event_ticker);
+}
+
+function isPregameEvent(ev, now) {
+  const start = eventStartMs(ev);
+  return start > 0 && start > now;
 }
 
 function kalshiEventUrl(series, eventTicker) {
@@ -351,6 +425,7 @@ function buildRow(sport, ev, books) {
       eventTicker: ev.event_ticker,
       matchup,
       url,
+      startMs: eventStartMs(ev),
       line: sides.away.abbr
         ? sides.away.abbr + ' ' + (fmtSpreadNum(sides.favLine) || '').replace('−', '-')
         : 'Spread',
@@ -389,6 +464,7 @@ function buildRow(sport, ev, books) {
     eventTicker: ev.event_ticker,
     matchup,
     url,
+    startMs: eventStartMs(ev),
     line: sport.kind === 'ml3' ? '1X2' : sport.id === 'TENNIS' ? 'Match' : 'ML',
     sides,
   };
@@ -413,8 +489,15 @@ async function loadSport(sport) {
   });
   if (!events.length) return [];
 
+  const now = Date.now();
+  const watch = cfg.pregameOnly ? events.filter((ev) => isPregameEvent(ev, now)) : events;
+  if (cfg.pregameOnly) {
+    log(sport.id, 'pregame', watch.length + '/' + events.length);
+  }
+  if (!watch.length) return [];
+
   const tickers = [];
-  events.forEach((ev) => {
+  watch.forEach((ev) => {
     if (sport.kind === 'spread') {
       const m = pickMainSpread(ev.markets || []);
       if (m) tickers.push(m.ticker);
@@ -438,7 +521,7 @@ async function loadSport(sport) {
     log('books fail', sport.id, err.message || err);
   }
 
-  return events.map((ev) => buildRow(sport, ev, books)).filter(Boolean);
+  return watch.map((ev) => buildRow(sport, ev, books)).filter(Boolean);
 }
 
 async function loadAllRows() {
@@ -496,7 +579,9 @@ async function applyRows(rows) {
   const alerts = [];
   const seen = new Set();
 
+  const now = Date.now();
   rows.forEach((row) => {
+    if (cfg.pregameOnly && (!row.startMs || row.startMs <= now)) return;
     row.sides.forEach((side) => {
       const key = snapKey(row, side);
       seen.add(key);
@@ -581,7 +666,7 @@ async function boot() {
     await postDiscord(
       'Kalshi watcher is up. Watching **' +
         cfg.sports.join(', ') +
-        '**. Posts if a side’s unfilled $ moves ±' +
+        '** pregame only. Posts if a side’s unfilled $ moves ±' +
         fmtMoney(cfg.delta) +
         '.'
     );
