@@ -174,14 +174,22 @@ function parseTickerStartMs(ticker) {
   return etLocalMs(year, mo, day, hh, mi);
 }
 
-function eventStartMs(ev) {
+function occurrenceMs(ev) {
   const markets = (ev && ev.markets) || [];
   for (let i = 0; i < markets.length; i++) {
-    const raw = markets[i] && markets[i].occurrence_datetime;
-    const t = Date.parse(raw);
+    const t = Date.parse(markets[i] && markets[i].occurrence_datetime);
     if (Number.isFinite(t) && t > 0) return t;
   }
-  return parseTickerStartMs(ev && ev.event_ticker);
+  return 0;
+}
+
+function eventStartMs(ev) {
+  // Kalshi occurrence_datetime is often expected expiration / estimated end
+  // (CHC@MIA 4:10pm first pitch had occurrence 7:10pm). Ticker HHMM is first pitch.
+  const fromTicker = parseTickerStartMs(ev && ev.event_ticker);
+  const fromOcc = occurrenceMs(ev);
+  if (fromTicker && fromOcc) return Math.min(fromTicker, fromOcc);
+  return fromTicker || fromOcc;
 }
 
 function isPregameEvent(ev, now) {
