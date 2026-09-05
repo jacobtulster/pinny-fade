@@ -91,6 +91,23 @@ function fmtSpreadNum(n) {
   return (n > 0 ? '+' : '-') + body;
 }
 
+function spreadSideLabel(abbr, line) {
+  const team = String(abbr || '').trim();
+  const ln = fmtSpreadNum(line);
+  if (team && ln) return team + ' ' + ln;
+  return team || ln || '';
+}
+
+function favoriteSpreadLabel(away, home) {
+  const a = away && away.line;
+  const h = home && home.line;
+  if (Number.isFinite(a) && Number.isFinite(h)) {
+    const fav = a <= h ? away : home;
+    return spreadSideLabel(fav.abbr, fav.line) || 'Spread';
+  }
+  return spreadSideLabel(away && away.abbr, a) || 'Spread';
+}
+
 function marketLive(m) {
   const s = String((m && m.status) || '').toLowerCase();
   return s === 'active' || s === 'open';
@@ -428,18 +445,23 @@ function buildRow(sport, ev, books) {
     const m = pickMainSpread(ev.markets || []);
     if (!m) return null;
     const sides = sideFromSpread(m, books, teams);
+    const awayAbbr = sides.away.abbr || teams.awayAbbr || 'Away';
+    const homeAbbr = sides.home.abbr || teams.homeAbbr || 'Home';
+    const awayLabel = spreadSideLabel(awayAbbr, sides.away.line) || awayAbbr;
+    const homeLabel = spreadSideLabel(homeAbbr, sides.home.line) || homeAbbr;
     return {
       sportId: sport.id,
       eventTicker: ev.event_ticker,
       matchup,
       url,
       startMs: eventStartMs(ev),
-      line: sides.away.abbr
-        ? sides.away.abbr + ' ' + (fmtSpreadNum(sides.favLine) || '').replace('−', '-')
-        : 'Spread',
+      line: favoriteSpreadLabel(
+        { abbr: awayAbbr, line: sides.away.line },
+        { abbr: homeAbbr, line: sides.home.line }
+      ),
       sides: [
-        { id: 'away', label: sides.away.abbr || teams.awayAbbr || 'Away', unfilled: sides.away.unfilled || 0 },
-        { id: 'home', label: sides.home.abbr || teams.homeAbbr || 'Home', unfilled: sides.home.unfilled || 0 },
+        { id: 'away', label: awayLabel, other: homeLabel, unfilled: sides.away.unfilled || 0 },
+        { id: 'home', label: homeLabel, other: awayLabel, unfilled: sides.home.unfilled || 0 },
       ],
     };
   }
@@ -447,15 +469,19 @@ function buildRow(sport, ev, books) {
   const awayM = marketForTeam(ev.markets, teams.awayAbbr, teams.awayName);
   const homeM = marketForTeam(ev.markets, teams.homeAbbr, teams.homeName);
   if (!awayM && !homeM) return null;
+  const awayLabel = tickerYesAbbr((awayM && awayM.ticker) || '') || teams.awayAbbr || 'Away';
+  const homeLabel = tickerYesAbbr((homeM && homeM.ticker) || '') || teams.homeAbbr || 'Home';
   const sides = [
     {
       id: 'away',
-      label: tickerYesAbbr((awayM && awayM.ticker) || '') || teams.awayAbbr || 'Away',
+      label: awayLabel + ' ML',
+      other: homeLabel + ' ML',
       unfilled: mlUnfilled(awayM, books),
     },
     {
       id: 'home',
-      label: tickerYesAbbr((homeM && homeM.ticker) || '') || teams.homeAbbr || 'Home',
+      label: homeLabel + ' ML',
+      other: awayLabel + ' ML',
       unfilled: mlUnfilled(homeM, books),
     },
   ];
@@ -464,7 +490,11 @@ function buildRow(sport, ev, books) {
     sides.push({
       id: 'draw',
       label: 'TIE',
+      other: 'either team to win',
       unfilled: mlUnfilled(drawM, books),
+    });
+    sides.forEach((s) => {
+      if (s.id !== 'draw') s.other = 'TIE or ' + (s.id === 'away' ? homeLabel : awayLabel) + ' ML';
     });
   }
   return {
@@ -473,7 +503,7 @@ function buildRow(sport, ev, books) {
     matchup,
     url,
     startMs: eventStartMs(ev),
-    line: sport.kind === 'ml3' ? '1X2' : sport.id === 'TENNIS' ? 'Match' : 'ML',
+    line: sport.kind === 'ml3' ? 'Moneyline (1X2)' : sport.id === 'TENNIS' ? 'Match winner' : 'Moneyline',
     sides,
   };
 }
@@ -618,12 +648,19 @@ async function applyRows(rows) {
   }
 
   for (const a of alerts) {
-    const arrow = a.kind === 'appear' ? 'appeared' : 'dropped';
+    const appear = a.kind === 'appear';
+    const hint = appear
+      ? 'New resting bids to buy **' + a.side.label + '**.'
+      : 'If hit, someone took **' +
+        (a.side.other || 'the other side') +
+        '**. Pulled/cancelled bids look the same.';
     const lines = [
-      '**' + (a.kind === 'appear' ? 'Wall appeared' : 'Wall dropped') + '** · ' + a.row.sportId,
+      '**' + (appear ? 'Wall appeared' : 'Wall dropped') + '** · ' + a.row.sportId,
       a.row.matchup,
-      a.row.line + ' · **' + a.side.label + '** unfilled ' + arrow,
+      'Market: **' + a.row.line + '**',
+      '**' + a.side.label + '** resting bids ' + (appear ? 'appeared' : 'dropped'),
       fmtMoney(a.prev) + ' → ' + fmtMoney(a.next) + '  (' + (a.delta > 0 ? '+' : '') + fmtMoney(a.delta) + ')',
+      hint,
       a.row.url || '',
     ].filter(Boolean);
     try {
