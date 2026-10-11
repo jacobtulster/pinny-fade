@@ -7,6 +7,7 @@ Fade high ZCode public ratios when Bet105 (Pinnacle clone) line movement goes th
 - Dashboard: https://jacobtulster.github.io/pinny-fade/
 - Games (today/tomorrow + archive): https://jacobtulster.github.io/pinny-fade/today-games/today-games.html
 - History: https://jacobtulster.github.io/pinny-fade/history.html
+- Book League: https://jacobtulster.github.io/pinny-fade/book-league.html
 - Kalshi Liq + Ratio: https://jacobtulster.github.io/pinny-fade/kalshi-liq-ratio.html
 - Repo: https://github.com/jacobtulster/pinny-fade
 
@@ -54,9 +55,11 @@ Chrome/Edge blocks Tampermonkey on local files unless **Allow access to file URL
 3. On ZCode: enable **Tickets Public Rankings** / Public Bets **Show All**.
 4. Keep the dashboard tab open — slate fills; scores + slams refresh; history commits land in this repo and show on the History page.
 
-## 4C Odds sharp consensus
+## 4C Odds TDRs + Book League
 
-Optional Tampermonkey script: [`userscript/4codds-consensus.user.js`](userscript/4codds-consensus.user.js). On [4codds.com](https://4codds.com/), it mashes **Amapola + Sharp AG + Pinnacle** into a no-vig consensus (ML / main spread / main total), paints `Σ` under each cell, and shows a floating panel. Needs ≥2 of the 3 books; green = all 3.
+Optional Tampermonkey script: [`userscript/4codds-consensus.user.js`](userscript/4codds-consensus.user.js) (**v3.5.0+**). On [4codds.com](https://4codds.com/) it paints board TDRs, My Line Take, OTC lean, and ZCode public ratios, and auto-commits Book League snaps to GitHub.
+
+**Book League auto-sync:** keep [`userscript/4codds-consensus.user.js`](userscript/4codds-consensus.user.js) on 4codds (and optionally [`userscript/pinny-fade-mlb.user.js`](userscript/pinny-fade-mlb.user.js) for the shared PAT). Eligible games (Y≥12) land in [`book-league/book-league-data.js`](book-league/book-league-data.js) — max **one snap per game / market / UTC hour**. Durable store is GitHub only. Public page: [Book League](https://jacobtulster.github.io/pinny-fade/book-league.html).
 
 ## Notes
 

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pinny Fade — Book League</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .bl-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin: 0 0 14px;
+    }
+    .bl-filters input[type="search"] {
+      min-width: min(280px, 70vw);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.28);
+      color: inherit;
+      font: 600 13px/1.2 Sora, system-ui, sans-serif;
+    }
+    .bl-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.22);
+      font: 650 12px/1 Sora, system-ui, sans-serif;
+      cursor: pointer;
+      user-select: none;
+    }
+    .bl-section { margin: 0 0 28px; }
+    .bl-section h2 {
+      margin: 0 0 10px;
+      font: 800 16px/1.2 Sora, system-ui, sans-serif;
+      letter-spacing: -0.01em;
+    }
+    .bl-section .bl-sub {
+      margin: -4px 0 12px;
+      font: 550 12px/1.4 Sora, system-ui, sans-serif;
+      color: rgba(232, 238, 248, 0.65);
+    }
+    .bl-when {
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.9;
+    }
+    .bl-best {
+      font: 650 12px/1.35 Sora, system-ui, sans-serif;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .bl-grade { font: 800 12px/1.2 Sora, system-ui, sans-serif; }
+    .bl-grade.ok { color: #86efac; }
+    .bl-grade.pending { color: rgba(232, 238, 248, 0.45); }
+    .bl-grade.live { color: #fcd34d; }
+    .bl-pts-pos { color: #86efac; font-weight: 800; }
+    .bl-pts-neg { color: #fca5a5; font-weight: 800; }
+    .bl-pts-zero { color: rgba(232, 238, 248, 0.45); }
+    .bl-expand {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.22);
+      color: inherit;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font: 700 11px/1 Sora, system-ui, sans-serif;
+      cursor: pointer;
+    }
+    .bl-detail td {
+      background: rgba(0, 0, 0, 0.18);
+      padding: 0 !important;
+    }
+    .bl-books {
+      width: 100%;
+      border-collapse: collapse;
+      font: 600 12px/1.35 Sora, system-ui, sans-serif;
+    }
+    .bl-books th,
+    .bl-books td {
+      padding: 6px 10px !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      text-align: left;
+    }
+    .bl-books th { opacity: 0.7; font-weight: 700; }
+    .bl-standings .rank {
+      opacity: 0.55;
+      font-variant-numeric: tabular-nums;
+      width: 2.5rem;
+    }
+    .bl-score {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="brand">
+        <h1>Book League</h1>
+        <p class="tagline">
+          Auto-synced from 4codds · fav TDR points · 1 snap / game / hour · ESPN finals
+        </p>
+      </div>
+      <div class="controls">
+        <a class="btn btn-secondary" href="index.html">Live slate</a>
+        <a class="btn btn-secondary" href="hist-tdr.html">Hist TDR</a>
+        <a class="btn btn-secondary" href="history.html">History</a>
+        <a class="btn btn-secondary" href="today-games/today-games.html">Games</a>
+        <button type="button" id="reloadBtn" class="btn">Reload</button>
+      </div>
+    </header>
+
+    <section class="status-bar" id="statusBar" aria-live="polite">
+      <span id="statusText">Loading Book League…</span>
+      <span id="statusMeta" class="meta"></span>
+    </section>
+
+    <section class="legend">
+      <div class="legend-left">
+        <span class="hint">
+          Scoring: mid = ceil(Y/2). Fav loses → mid − favRank. Fav wins → flip. J3 = 3.
+          Keep 4codds open with the userscript + GitHub token to publish snaps.
+        </span>
+      </div>
+    </section>
+
+    <section class="bl-section">
+      <h2>League standings</h2>
+      <p class="bl-sub">Graded hourly snaps. Correct = +pts that game; Wrong = −pts; mid rank = 0.</p>
+      <div class="table-wrap">
+        <table class="slate bl-standings" id="standingsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Book</th>
+              <th>Games</th>
+              <th>Pts</th>
+              <th>Avg</th>
+              <th>Correct</th>
+              <th>Wrong</th>
+            </tr>
+          </thead>
+          <tbody id="standingsBody">
+            <tr class="empty"><td colspan="7">Waiting for graded snaps…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="bl-section">
+      <h2>Snapshots</h2>
+      <p class="bl-sub">1:1 with what the userscript sent (max one per game / market / hour).</p>
+      <div class="bl-filters">
+        <input type="search" id="searchInput" placeholder="Filter matchup, book, league…" aria-label="Filter snaps" />
+        <label class="bl-chip"><input type="checkbox" id="filterUngraded" /> Ungraded only</label>
+      </div>
+      <div class="table-wrap">
+        <table class="slate" id="snapTable">
+          <thead>
+            <tr>
+              <th></th>
+              <th>When</th>
+              <th>Matchup</th>
+              <th>Fav</th>
+              <th>Y</th>
+              <th>Best fav</th>
+              <th>Best dog</th>
+              <th>Pinny open</th>
+              <th>Score</th>
+              <th>Grade</th>
+            </tr>
+          </thead>
+          <tbody id="snapBody">
+            <tr class="empty"><td colspan="10">No snaps yet — open 4codds with the userscript.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>
+        Personal use · Synced to
+        <a href="https://jacobtulster.github.io/pinny-fade/book-league.html">GitHub Pages</a>
+        · Not affiliated with 4codds
+      </p>
+    </footer>
+  </div>
+  <script src="book-league/book-league-data.js"></script>
+  <script src="book-league.js"></script>
+</body>
+</html>
