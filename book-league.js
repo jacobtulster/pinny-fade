@@ -291,6 +291,11 @@
     );
   }
 
+  function tdrLabel(rank, joint, y) {
+    if (rank == null) return '—';
+    return (joint ? 'J' : '') + rank + '/' + (y || '?');
+  }
+
   function detailHtml(s) {
     const won = favWonSnap(s);
     const rows = bookRows(s);
@@ -299,15 +304,10 @@
     }
     return (
       '<table class="bl-books"><thead><tr>' +
-      '<th>Book</th><th>Fav price</th><th>Fav TDR</th><th>Dog price</th><th>Pts</th>' +
+      '<th>Book</th><th>Fav</th><th>Fav TDR</th><th>Dog</th><th>Dog TDR</th><th>Pts</th>' +
       '</tr></thead><tbody>' +
       rows
         .map((b) => {
-          const label =
-            (b.favJoint ? 'J' : '') +
-            (b.favRank != null ? b.favRank : '?') +
-            '/' +
-            (s.y || '?');
           const pts =
             won == null || b.favRank == null ? null : pointsForBook(b.favRank, s.y, won);
           return (
@@ -319,10 +319,13 @@
             escapeHtml(fmtAm(b.favPrice)) +
             '</td>' +
             '<td>' +
-            escapeHtml(label) +
+            escapeHtml(tdrLabel(b.favRank, b.favJoint, s.y)) +
             '</td>' +
             '<td>' +
             escapeHtml(fmtAm(b.dogPrice)) +
+            '</td>' +
+            '<td>' +
+            escapeHtml(tdrLabel(b.dogRank, b.dogJoint, s.y)) +
             '</td>' +
             '<td class="' +
             ptsClass(pts) +
@@ -635,6 +638,8 @@
   }
 
   if (loadFromWindow()) {
+    // Show every book's prices + TDRs by default (collapse still works).
+    snaps.forEach((s) => openDetail.add(snapKey(s)));
     render();
     pollEspn();
     setInterval(pollEspn, LIVE_POLL_MS);
