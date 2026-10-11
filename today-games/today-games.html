@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Games — Today &amp; Tomorrow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="today-games.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="brand">
+        <h1>Games</h1>
+        <p class="tagline">
+          NFL · NCAAF · NHL · MLB · NBA · WNBA · NCAAB — today &amp; tomorrow
+          slates with season edge/cover averages, lines, and hotter W/P/L after
+          finals.
+        </p>
+      </div>
+      <div class="controls">
+        <a class="nav-link" href="../index.html">Pinny Fade</a>
+        <label class="hist-label" for="historySelect">Archive</label>
+        <select id="historySelect" aria-label="Archive day">
+          <option value="live">Live (today / tomorrow)</option>
+        </select>
+        <input
+          type="search"
+          id="searchInput"
+          placeholder="Search team…"
+          autocomplete="off"
+        />
+        <button type="button" id="reloadBtn" class="btn">Reload</button>
+      </div>
+    </header>
+
+    <div class="day-tabs" id="dayTabs" role="tablist" aria-label="Day">
+      <button type="button" class="day-tab active" data-day="today" id="tabToday">
+        Today
+      </button>
+      <button type="button" class="day-tab" data-day="tomorrow" id="tabTomorrow">
+        Tomorrow
+      </button>
+    </div>
+
+    <section class="status" aria-live="polite">
+      <span id="statusText">Loading…</span>
+      <span id="statusMeta" class="meta"></span>
+    </section>
+
+    <div class="filters" id="sportFilters" role="tablist" aria-label="Sport filter"></div>
+
+    <p class="hint">
+      Refresh + archive:
+      <code>node today-games/fetch.js</code>
+      · writes
+      <code>today-games/history/YYYY-MM-DD.json</code>
+      · NCAAF cover from CFBD · NHL/MLB = ML×scoreline edge ·
+      NFL/NBA/WNBA/NCAAB = spread cover · finished hotter picks graded W/P/L ·
+      live scores poll every 20s from ESPN
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th>Sport</th>
+            <th class="sortable sort-active" data-sort="time" data-dir="↑">
+              Kickoff (ET)
+            </th>
+            <th>Matchup</th>
+            <th>Line</th>
+            <th class="num">Away avg</th>
+            <th class="num">Home avg</th>
+            <th class="num sortable" data-sort="gap">Gap</th>
+            <th>Hotter</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr class="empty">
+            <td colspan="10">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="footer">
+      <p>
+        Personal use · ESPN + CollegeFootballData ·
+        <a href="../index.html">Pinny Fade</a> · not affiliated with leagues or
+        sportsbooks
+      </p>
+    </footer>
+  </div>
+  <script src="today-games-data.js"></script>
+  <script src="today-games.js"></script>
+</body>
+</html>

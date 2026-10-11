@@ -5,9 +5,23 @@ Fade high ZCode public ratios when Bet105 (Pinnacle clone) line movement goes th
 ## Live site (public)
 
 - Dashboard: https://jacobtulster.github.io/pinny-fade/
+- Games (today/tomorrow + archive): https://jacobtulster.github.io/pinny-fade/today-games/today-games.html
 - History: https://jacobtulster.github.io/pinny-fade/history.html
 - Kalshi Liq + Ratio: https://jacobtulster.github.io/pinny-fade/kalshi-liq-ratio.html
 - Repo: https://github.com/jacobtulster/pinny-fade
+
+### Games slate (today / tomorrow)
+
+Refresh the public Games page from the repo root:
+
+```bash
+node today-games/fetch.js
+git add today-games/today-games-data.js today-games/history
+git commit -m "Update Games slate"
+git push
+```
+
+Each fetch overwrites the live file and archives `today-games/history/YYYY-MM-DD.json` (prior days are preserved on rollover). Use the **Archive** dropdown on the Games page to browse past days.
 
 ## Setup (once)
 
@@ -39,6 +53,10 @@ Chrome/Edge blocks Tampermonkey on local files unless **Allow access to file URL
 2. Click **Open ZCode tabs** — opens [BMR odds-scores](https://www.bookmakersreview.com/odds-scores/) plus MLB / NFL / NCAAF / WNBA Line Reversals (stay logged in on ZCode).
 3. On ZCode: enable **Tickets Public Rankings** / Public Bets **Show All**.
 4. Keep the dashboard tab open — slate fills; scores + slams refresh; history commits land in this repo and show on the History page.
+
+## 4C Odds sharp consensus
+
+Optional Tampermonkey script: [`userscript/4codds-consensus.user.js`](userscript/4codds-consensus.user.js). On [4codds.com](https://4codds.com/), it mashes **Amapola + Sharp AG + Pinnacle** into a no-vig consensus (ML / main spread / main total), paints `Σ` under each cell, and shows a floating panel. Needs ≥2 of the 3 books; green = all 3.
 
 ## Notes
 

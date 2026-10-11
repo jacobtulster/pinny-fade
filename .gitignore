@@ -6,3 +6,6 @@ Thumbs.db
 !.env.example
 !**/.env.example
 node_modules/
+cover-diff/cover-diff-data.json
+nhl-diff/nhl-diff-data.json
+today-games/today-games-data.json
