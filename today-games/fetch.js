@@ -902,6 +902,9 @@ async function main() {
     OUT_JSON
   );
   console.log('Archived →', path.join(HIST_DIR, todayEt + '.json'));
+
+  // Pull finals + W/P/L into any archive days still stuck mid-game.
+  await regradeIncompleteArchives();
 }
 
 function readExistingPayload() {
@@ -923,12 +926,34 @@ function readExistingPayload() {
   }
 }
 
+function countCompletedGames(payload) {
+  const games =
+    (payload &&
+      payload.today &&
+      Array.isArray(payload.today.games) &&
+      payload.today.games) ||
+    (payload && Array.isArray(payload.games) && payload.games) ||
+    [];
+  return games.filter((g) => g && g.completed).length;
+}
+
 function archiveExistingIfRollover(newTodayEt) {
   const prev = readExistingPayload();
   if (!prev || !prev.todayEt) return;
   if (prev.todayEt === newTodayEt) return;
   const dest = path.join(HIST_DIR, prev.todayEt + '.json');
-  if (fs.existsSync(dest)) return;
+  let shouldWrite = !fs.existsSync(dest);
+  if (!shouldWrite) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(dest, 'utf8'));
+      if (countCompletedGames(prev) > countCompletedGames(existing)) {
+        shouldWrite = true;
+      }
+    } catch (_) {
+      shouldWrite = true;
+    }
+  }
+  if (!shouldWrite) return;
   writeDayArchive(prev);
   console.log('Preserved prior day →', dest);
 }
@@ -939,6 +964,134 @@ function writeDayArchive(payload) {
   const dest = path.join(HIST_DIR, payload.todayEt + '.json');
   fs.writeFileSync(dest, JSON.stringify(payload, null, 2) + '\n', 'utf8');
   updateHistoryIndex(payload.todayEt);
+}
+
+function listArchiveDays() {
+  try {
+    if (!fs.existsSync(HIST_INDEX)) return [];
+    const idx = JSON.parse(fs.readFileSync(HIST_INDEX, 'utf8'));
+    return Array.isArray(idx.days) ? idx.days.slice() : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function archiveHasIncomplete(payload) {
+  const games =
+    (payload &&
+      payload.today &&
+      Array.isArray(payload.today.games) &&
+      payload.today.games) ||
+    (payload && Array.isArray(payload.games) && payload.games) ||
+    [];
+  return games.some((g) => g && !g.completed);
+}
+
+async function mergeEspnFinalsIntoGames(games, dateEt) {
+  if (!games || !games.length) return 0;
+  const dayCompact = ymdToCompact(dateEt);
+  const sports = [...new Set(games.map((g) => g && g.sport).filter(Boolean))];
+  const liveById = new Map();
+  for (const sportId of sports) {
+    const sport = SPORTS.find((s) => s.id === sportId);
+    if (!sport) continue;
+    try {
+      const rows = await fetchDayEvents(sport, dayCompact);
+      for (const r of rows) liveById.set(String(r.gameId), r);
+    } catch (e) {
+      console.warn(
+        '  regrade',
+        dateEt,
+        sportId,
+        'board fail',
+        e.message || e
+      );
+    }
+  }
+
+  let changed = 0;
+  for (const g of games) {
+    if (!g) continue;
+    const live = liveById.get(String(g.gameId));
+    if (!live) continue;
+    let dirty = false;
+    if (g.completed !== live.completed) {
+      g.completed = live.completed;
+      dirty = true;
+    }
+    if (live.status && g.status !== live.status) {
+      g.status = live.status;
+      dirty = true;
+    }
+    if (live.state && g.state !== live.state) {
+      g.state = live.state;
+      dirty = true;
+    }
+    if (live.awayScore != null && g.awayScore !== live.awayScore) {
+      g.awayScore = live.awayScore;
+      dirty = true;
+    }
+    if (live.homeScore != null && g.homeScore !== live.homeScore) {
+      g.homeScore = live.homeScore;
+      dirty = true;
+    }
+    const graded = gradeHotterResult(g, g.metric, {
+      homeSpread: g.homeSpread,
+      awaySpread: g.awaySpread,
+    });
+    if (g.hotterResult !== graded) {
+      g.hotterResult = graded;
+      dirty = true;
+    }
+    if (dirty) changed++;
+  }
+  return changed;
+}
+
+async function regradeArchiveFile(dateEt) {
+  const dest = path.join(HIST_DIR, dateEt + '.json');
+  if (!fs.existsSync(dest)) return 0;
+  let payload;
+  try {
+    payload = JSON.parse(fs.readFileSync(dest, 'utf8'));
+  } catch (e) {
+    console.warn('  regrade skip bad json', dateEt, e.message || e);
+    return 0;
+  }
+
+  const todayGames =
+    (payload.today && payload.today.games) || payload.games || [];
+  const changed = await mergeEspnFinalsIntoGames(todayGames, dateEt);
+  if (!changed) return 0;
+
+  if (payload.today) payload.today.games = todayGames;
+  payload.games = todayGames;
+  payload.gradedAt = new Date().toISOString();
+  fs.writeFileSync(dest, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+  updateHistoryIndex(dateEt);
+  console.log('  regraded', dateEt, '· updated', changed, 'games');
+  return changed;
+}
+
+async function regradeIncompleteArchives() {
+  const days = listArchiveDays();
+  if (!days.length) return;
+  console.log('Regrading incomplete archive days…');
+  for (const dateEt of days) {
+    const dest = path.join(HIST_DIR, dateEt + '.json');
+    if (!fs.existsSync(dest)) continue;
+    let payload;
+    try {
+      payload = JSON.parse(fs.readFileSync(dest, 'utf8'));
+    } catch (_) {
+      continue;
+    }
+    if (!archiveHasIncomplete(payload)) {
+      console.log('  ', dateEt, 'already complete');
+      continue;
+    }
+    await regradeArchiveFile(dateEt);
+  }
 }
 
 function updateHistoryIndex(dateEt) {

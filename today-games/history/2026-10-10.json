@@ -462,12 +462,12 @@
       "awaySpread": 10,
       "oddsProvider": "DraftKings",
       "overUnder": 57.5,
-      "completed": false,
-      "status": "13:17 - 4th",
-      "state": "in",
+      "completed": true,
+      "status": "Final",
+      "state": "post",
       "awayScore": 17,
-      "homeScore": 6,
-      "hotterResult": null
+      "homeScore": 15,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -492,12 +492,12 @@
       "awaySpread": 27.5,
       "oddsProvider": "DraftKings",
       "overUnder": 58.5,
-      "completed": false,
-      "status": "2:35 - 4th",
-      "state": "in",
+      "completed": true,
+      "status": "Final",
+      "state": "post",
       "awayScore": 10,
       "homeScore": 50,
-      "hotterResult": null
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -522,12 +522,12 @@
       "awaySpread": 18.5,
       "oddsProvider": "DraftKings",
       "overUnder": 54.5,
-      "completed": false,
-      "status": "6:48 - 4th",
-      "state": "in",
-      "awayScore": 16,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 23,
+      "homeScore": 8,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -552,12 +552,12 @@
       "awaySpread": 40.5,
       "oddsProvider": "DraftKings",
       "overUnder": 55.5,
-      "completed": false,
-      "status": "7:41 - 4th",
-      "state": "in",
+      "completed": true,
+      "status": "Final",
+      "state": "post",
       "awayScore": 7,
-      "homeScore": 51,
-      "hotterResult": null
+      "homeScore": 58,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -582,12 +582,12 @@
       "awaySpread": -7.5,
       "oddsProvider": "DraftKings",
       "overUnder": 40.5,
-      "completed": false,
-      "status": "End of 3rd",
-      "state": "in",
-      "awayScore": 17,
-      "homeScore": 10,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 24,
+      "homeScore": 27,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -612,12 +612,12 @@
       "awaySpread": -11.5,
       "oddsProvider": "DraftKings",
       "overUnder": 51.5,
-      "completed": false,
-      "status": "4:06 - 4th",
-      "state": "in",
-      "awayScore": 14,
-      "homeScore": 19,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 20,
+      "homeScore": 25,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -642,12 +642,12 @@
       "awaySpread": 3,
       "oddsProvider": "DraftKings",
       "overUnder": 47.5,
-      "completed": false,
-      "status": "2:00 - 4th",
-      "state": "in",
+      "completed": true,
+      "status": "Final",
+      "state": "post",
       "awayScore": 26,
-      "homeScore": 27,
-      "hotterResult": null
+      "homeScore": 34,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -672,12 +672,12 @@
       "awaySpread": 13.5,
       "oddsProvider": "DraftKings",
       "overUnder": 43.5,
-      "completed": false,
-      "status": "3:19 - 4th",
-      "state": "in",
+      "completed": true,
+      "status": "Final",
+      "state": "post",
       "awayScore": 7,
-      "homeScore": 31,
-      "hotterResult": null
+      "homeScore": 38,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -702,12 +702,12 @@
       "awaySpread": -4.5,
       "oddsProvider": "DraftKings",
       "overUnder": 51.5,
-      "completed": false,
-      "status": "6:27 - 4th",
-      "state": "in",
-      "awayScore": 22,
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 25,
       "homeScore": 23,
-      "hotterResult": null
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -732,12 +732,12 @@
       "awaySpread": -4.5,
       "oddsProvider": "DraftKings",
       "overUnder": 45.5,
-      "completed": false,
-      "status": "6:42 - 4th",
-      "state": "in",
-      "awayScore": 18,
-      "homeScore": 21,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 25,
+      "homeScore": 28,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -762,12 +762,12 @@
       "awaySpread": -9.5,
       "oddsProvider": "DraftKings",
       "overUnder": 54.5,
-      "completed": false,
-      "status": "15:00 - 3rd",
-      "state": "in",
-      "awayScore": 42,
-      "homeScore": 10,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 52,
+      "homeScore": 17,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -792,12 +792,12 @@
       "awaySpread": 2.5,
       "oddsProvider": "DraftKings",
       "overUnder": 55.5,
-      "completed": false,
-      "status": "11:16 - 4th",
-      "state": "in",
+      "completed": true,
+      "status": "Final",
+      "state": "post",
       "awayScore": 35,
-      "homeScore": 9,
-      "hotterResult": null
+      "homeScore": 16,
+      "hotterResult": "L"
     },
     {
       "sport": "NHL",
@@ -852,12 +852,12 @@
       "awaySpread": 2.5,
       "oddsProvider": "DraftKings",
       "overUnder": 45.5,
-      "completed": false,
-      "status": "5:08 - 4th",
-      "state": "in",
-      "awayScore": 7,
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 14,
       "homeScore": 31,
-      "hotterResult": null
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -882,12 +882,12 @@
       "awaySpread": -2.5,
       "oddsProvider": "DraftKings",
       "overUnder": 48.5,
-      "completed": false,
-      "status": "7:47 - 4th",
-      "state": "in",
-      "awayScore": 31,
-      "homeScore": 24,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final/OT",
+      "state": "post",
+      "awayScore": 38,
+      "homeScore": 37,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -912,12 +912,12 @@
       "awaySpread": 3.5,
       "oddsProvider": "DraftKings",
       "overUnder": 55.5,
-      "completed": false,
-      "status": "12:48 - 4th",
-      "state": "in",
-      "awayScore": 24,
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 34,
       "homeScore": 20,
-      "hotterResult": null
+      "hotterResult": "W"
     },
     {
       "sport": "NHL",
@@ -942,12 +942,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 6.5,
-      "completed": false,
-      "status": "3:44 - 3rd",
-      "state": "in",
+      "completed": true,
+      "status": "Final",
+      "state": "post",
       "awayScore": 3,
       "homeScore": 1,
-      "hotterResult": null
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -972,12 +972,12 @@
       "awaySpread": -13.5,
       "oddsProvider": "DraftKings",
       "overUnder": 51.5,
-      "completed": false,
-      "status": "4:27 - 3rd",
-      "state": "in",
-      "awayScore": 7,
-      "homeScore": 14,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 24,
+      "homeScore": 17,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -1002,12 +1002,12 @@
       "awaySpread": 31.5,
       "oddsProvider": "DraftKings",
       "overUnder": 56.5,
-      "completed": false,
-      "status": "7:38 - 3rd",
-      "state": "in",
-      "awayScore": 10,
-      "homeScore": 31,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 16,
+      "homeScore": 45,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -1032,12 +1032,12 @@
       "awaySpread": 14.5,
       "oddsProvider": "DraftKings",
       "overUnder": 52.5,
-      "completed": false,
-      "status": "5:33 - 1st",
-      "state": "in",
-      "awayScore": 0,
-      "homeScore": 7,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 14,
+      "homeScore": 66,
+      "hotterResult": "W"
     },
     {
       "sport": "NHL",
@@ -1062,12 +1062,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 5.5,
-      "completed": false,
-      "status": "9:27 - 1st",
-      "state": "in",
-      "awayScore": 2,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 4,
+      "homeScore": 1,
+      "hotterResult": "W"
     },
     {
       "sport": "NBA",
@@ -1092,11 +1092,11 @@
       "awaySpread": 4.5,
       "oddsProvider": "DraftKings",
       "overUnder": 219.5,
-      "completed": false,
-      "status": "10/10 - 6:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 106,
+      "homeScore": 114,
       "hotterResult": null
     },
     {
@@ -1122,12 +1122,12 @@
       "awaySpread": -10,
       "oddsProvider": "DraftKings",
       "overUnder": 48.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 30,
+      "homeScore": 13,
+      "hotterResult": "W"
     },
     {
       "sport": "NBA",
@@ -1152,12 +1152,12 @@
       "awaySpread": 1.5,
       "oddsProvider": "DraftKings",
       "overUnder": 234.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 119,
+      "homeScore": 117,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -1182,12 +1182,12 @@
       "awaySpread": 4.5,
       "oddsProvider": "DraftKings",
       "overUnder": 57.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 27,
+      "homeScore": 21,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -1212,12 +1212,12 @@
       "awaySpread": -2.5,
       "oddsProvider": "DraftKings",
       "overUnder": 47.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 7,
+      "homeScore": 13,
+      "hotterResult": "L"
     },
     {
       "sport": "NBA",
@@ -1242,12 +1242,12 @@
       "awaySpread": -2.5,
       "oddsProvider": "DraftKings",
       "overUnder": 223.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final/OT",
+      "state": "post",
+      "awayScore": 108,
+      "homeScore": 114,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -1272,12 +1272,12 @@
       "awaySpread": 15.5,
       "oddsProvider": "DraftKings",
       "overUnder": 54.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 13,
+      "homeScore": 38,
+      "hotterResult": "W"
     },
     {
       "sport": "NHL",
@@ -1302,12 +1302,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 6.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 6,
+      "homeScore": 3,
+      "hotterResult": "L"
     },
     {
       "sport": "NHL",
@@ -1332,12 +1332,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 5.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 5,
+      "homeScore": 2,
+      "hotterResult": "W"
     },
     {
       "sport": "NHL",
@@ -1362,12 +1362,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 6.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 4,
+      "homeScore": 1,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -1392,12 +1392,12 @@
       "awaySpread": -9.5,
       "oddsProvider": "DraftKings",
       "overUnder": 50.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final/OT",
+      "state": "post",
+      "awayScore": 34,
+      "homeScore": 35,
+      "hotterResult": "L"
     },
     {
       "sport": "NHL",
@@ -1422,12 +1422,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 5.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 3,
+      "homeScore": 5,
+      "hotterResult": "L"
     },
     {
       "sport": "NHL",
@@ -1452,12 +1452,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 6.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final/SO",
+      "state": "post",
+      "awayScore": 1,
+      "homeScore": 2,
+      "hotterResult": "W"
     },
     {
       "sport": "NHL",
@@ -1482,12 +1482,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 6.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
+      "completed": true,
+      "status": "Final/SO",
+      "state": "post",
       "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "homeScore": 1,
+      "hotterResult": "L"
     },
     {
       "sport": "NHL",
@@ -1512,12 +1512,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 5.5,
-      "completed": false,
-      "status": "10/10 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final/SO",
+      "state": "post",
+      "awayScore": 2,
+      "homeScore": 3,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -1542,12 +1542,12 @@
       "awaySpread": 2.5,
       "oddsProvider": "DraftKings",
       "overUnder": 51.5,
-      "completed": false,
-      "status": "10/10 - 7:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 20,
+      "homeScore": 17,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -1572,12 +1572,12 @@
       "awaySpread": -7,
       "oddsProvider": "DraftKings",
       "overUnder": 48.5,
-      "completed": false,
-      "status": "10/10 - 7:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 28,
+      "homeScore": 7,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -1602,12 +1602,12 @@
       "awaySpread": 13.5,
       "oddsProvider": "DraftKings",
       "overUnder": 49.5,
-      "completed": false,
-      "status": "10/10 - 7:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 25,
+      "homeScore": 28,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -1632,12 +1632,12 @@
       "awaySpread": -1.5,
       "oddsProvider": "DraftKings",
       "overUnder": 54.5,
-      "completed": false,
-      "status": "10/10 - 7:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 31,
+      "homeScore": 23,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -1662,12 +1662,12 @@
       "awaySpread": -7.5,
       "oddsProvider": "DraftKings",
       "overUnder": 51.5,
-      "completed": false,
-      "status": "10/10 - 7:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 27,
+      "homeScore": 24,
+      "hotterResult": "L"
     },
     {
       "sport": "NHL",
@@ -1692,12 +1692,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 5.5,
-      "completed": false,
-      "status": "10/10 - 7:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 5,
+      "homeScore": 3,
+      "hotterResult": "L"
     },
     {
       "sport": "NCAAF",
@@ -1722,11 +1722,11 @@
       "awaySpread": 3,
       "oddsProvider": "DraftKings",
       "overUnder": 48.5,
-      "completed": false,
-      "status": "10/10 - 7:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 31,
+      "homeScore": 32,
       "hotterResult": null
     },
     {
@@ -1752,12 +1752,12 @@
       "awaySpread": 5.5,
       "oddsProvider": "DraftKings",
       "overUnder": 225.5,
-      "completed": false,
-      "status": "10/10 - 8:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 106,
+      "homeScore": 144,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -1782,12 +1782,12 @@
       "awaySpread": 15.5,
       "oddsProvider": "DraftKings",
       "overUnder": 49.5,
-      "completed": false,
-      "status": "10/10 - 8:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 24,
+      "homeScore": 41,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -1812,12 +1812,12 @@
       "awaySpread": -2.5,
       "oddsProvider": "DraftKings",
       "overUnder": 49.5,
-      "completed": false,
-      "status": "10/10 - 8:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 13,
+      "homeScore": 41,
+      "hotterResult": "L"
     },
     {
       "sport": "NBA",
@@ -1842,12 +1842,12 @@
       "awaySpread": -2.5,
       "oddsProvider": "DraftKings",
       "overUnder": 234.5,
-      "completed": false,
-      "status": "10/10 - 8:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 125,
+      "homeScore": 124,
+      "hotterResult": "W"
     },
     {
       "sport": "MLB",
@@ -1872,12 +1872,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 7.5,
-      "completed": false,
-      "status": "10/10 - 8:00 PM EDT",
-      "state": "pre",
+      "completed": true,
+      "status": "Final",
+      "state": "post",
       "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "homeScore": 2,
+      "hotterResult": "W"
     },
     {
       "sport": "NBA",
@@ -1902,12 +1902,12 @@
       "awaySpread": 5.5,
       "oddsProvider": "DraftKings",
       "overUnder": 229.5,
-      "completed": false,
-      "status": "10/10 - 8:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 106,
+      "homeScore": 111,
+      "hotterResult": "L"
     },
     {
       "sport": "NHL",
@@ -1932,12 +1932,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 6.5,
-      "completed": false,
-      "status": "10/10 - 10:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 4,
+      "homeScore": 2,
+      "hotterResult": "W"
     },
     {
       "sport": "NHL",
@@ -1962,12 +1962,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 6.5,
-      "completed": false,
-      "status": "10/10 - 10:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final/OT",
+      "state": "post",
+      "awayScore": 1,
+      "homeScore": 2,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -1992,12 +1992,12 @@
       "awaySpread": 20.5,
       "oddsProvider": "DraftKings",
       "overUnder": 51.5,
-      "completed": false,
-      "status": "10/10 - 10:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 12,
+      "homeScore": 30,
+      "hotterResult": "L"
     },
     {
       "sport": "NBA",
@@ -2022,12 +2022,12 @@
       "awaySpread": -7.5,
       "oddsProvider": "DraftKings",
       "overUnder": 223.5,
-      "completed": false,
-      "status": "10/10 - 10:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 98,
+      "homeScore": 102,
+      "hotterResult": "W"
     },
     {
       "sport": "NCAAF",
@@ -2052,12 +2052,12 @@
       "awaySpread": -8.5,
       "oddsProvider": "DraftKings",
       "overUnder": 48.5,
-      "completed": false,
-      "status": "10/10 - 10:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 38,
+      "homeScore": 31,
+      "hotterResult": "W"
     }
   ],
   "today": {
@@ -2512,12 +2512,12 @@
         "awaySpread": 10,
         "oddsProvider": "DraftKings",
         "overUnder": 57.5,
-        "completed": false,
-        "status": "13:17 - 4th",
-        "state": "in",
+        "completed": true,
+        "status": "Final",
+        "state": "post",
         "awayScore": 17,
-        "homeScore": 6,
-        "hotterResult": null
+        "homeScore": 15,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -2542,12 +2542,12 @@
         "awaySpread": 27.5,
         "oddsProvider": "DraftKings",
         "overUnder": 58.5,
-        "completed": false,
-        "status": "2:35 - 4th",
-        "state": "in",
+        "completed": true,
+        "status": "Final",
+        "state": "post",
         "awayScore": 10,
         "homeScore": 50,
-        "hotterResult": null
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -2572,12 +2572,12 @@
         "awaySpread": 18.5,
         "oddsProvider": "DraftKings",
         "overUnder": 54.5,
-        "completed": false,
-        "status": "6:48 - 4th",
-        "state": "in",
-        "awayScore": 16,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 23,
+        "homeScore": 8,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -2602,12 +2602,12 @@
         "awaySpread": 40.5,
         "oddsProvider": "DraftKings",
         "overUnder": 55.5,
-        "completed": false,
-        "status": "7:41 - 4th",
-        "state": "in",
+        "completed": true,
+        "status": "Final",
+        "state": "post",
         "awayScore": 7,
-        "homeScore": 51,
-        "hotterResult": null
+        "homeScore": 58,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -2632,12 +2632,12 @@
         "awaySpread": -7.5,
         "oddsProvider": "DraftKings",
         "overUnder": 40.5,
-        "completed": false,
-        "status": "End of 3rd",
-        "state": "in",
-        "awayScore": 17,
-        "homeScore": 10,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 24,
+        "homeScore": 27,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -2662,12 +2662,12 @@
         "awaySpread": -11.5,
         "oddsProvider": "DraftKings",
         "overUnder": 51.5,
-        "completed": false,
-        "status": "4:06 - 4th",
-        "state": "in",
-        "awayScore": 14,
-        "homeScore": 19,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 20,
+        "homeScore": 25,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -2692,12 +2692,12 @@
         "awaySpread": 3,
         "oddsProvider": "DraftKings",
         "overUnder": 47.5,
-        "completed": false,
-        "status": "2:00 - 4th",
-        "state": "in",
+        "completed": true,
+        "status": "Final",
+        "state": "post",
         "awayScore": 26,
-        "homeScore": 27,
-        "hotterResult": null
+        "homeScore": 34,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -2722,12 +2722,12 @@
         "awaySpread": 13.5,
         "oddsProvider": "DraftKings",
         "overUnder": 43.5,
-        "completed": false,
-        "status": "3:19 - 4th",
-        "state": "in",
+        "completed": true,
+        "status": "Final",
+        "state": "post",
         "awayScore": 7,
-        "homeScore": 31,
-        "hotterResult": null
+        "homeScore": 38,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -2752,12 +2752,12 @@
         "awaySpread": -4.5,
         "oddsProvider": "DraftKings",
         "overUnder": 51.5,
-        "completed": false,
-        "status": "6:27 - 4th",
-        "state": "in",
-        "awayScore": 22,
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 25,
         "homeScore": 23,
-        "hotterResult": null
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -2782,12 +2782,12 @@
         "awaySpread": -4.5,
         "oddsProvider": "DraftKings",
         "overUnder": 45.5,
-        "completed": false,
-        "status": "6:42 - 4th",
-        "state": "in",
-        "awayScore": 18,
-        "homeScore": 21,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 25,
+        "homeScore": 28,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -2812,12 +2812,12 @@
         "awaySpread": -9.5,
         "oddsProvider": "DraftKings",
         "overUnder": 54.5,
-        "completed": false,
-        "status": "15:00 - 3rd",
-        "state": "in",
-        "awayScore": 42,
-        "homeScore": 10,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 52,
+        "homeScore": 17,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -2842,12 +2842,12 @@
         "awaySpread": 2.5,
         "oddsProvider": "DraftKings",
         "overUnder": 55.5,
-        "completed": false,
-        "status": "11:16 - 4th",
-        "state": "in",
+        "completed": true,
+        "status": "Final",
+        "state": "post",
         "awayScore": 35,
-        "homeScore": 9,
-        "hotterResult": null
+        "homeScore": 16,
+        "hotterResult": "L"
       },
       {
         "sport": "NHL",
@@ -2902,12 +2902,12 @@
         "awaySpread": 2.5,
         "oddsProvider": "DraftKings",
         "overUnder": 45.5,
-        "completed": false,
-        "status": "5:08 - 4th",
-        "state": "in",
-        "awayScore": 7,
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 14,
         "homeScore": 31,
-        "hotterResult": null
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -2932,12 +2932,12 @@
         "awaySpread": -2.5,
         "oddsProvider": "DraftKings",
         "overUnder": 48.5,
-        "completed": false,
-        "status": "7:47 - 4th",
-        "state": "in",
-        "awayScore": 31,
-        "homeScore": 24,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final/OT",
+        "state": "post",
+        "awayScore": 38,
+        "homeScore": 37,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -2962,12 +2962,12 @@
         "awaySpread": 3.5,
         "oddsProvider": "DraftKings",
         "overUnder": 55.5,
-        "completed": false,
-        "status": "12:48 - 4th",
-        "state": "in",
-        "awayScore": 24,
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 34,
         "homeScore": 20,
-        "hotterResult": null
+        "hotterResult": "W"
       },
       {
         "sport": "NHL",
@@ -2992,12 +2992,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 6.5,
-        "completed": false,
-        "status": "3:44 - 3rd",
-        "state": "in",
+        "completed": true,
+        "status": "Final",
+        "state": "post",
         "awayScore": 3,
         "homeScore": 1,
-        "hotterResult": null
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -3022,12 +3022,12 @@
         "awaySpread": -13.5,
         "oddsProvider": "DraftKings",
         "overUnder": 51.5,
-        "completed": false,
-        "status": "4:27 - 3rd",
-        "state": "in",
-        "awayScore": 7,
-        "homeScore": 14,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 24,
+        "homeScore": 17,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -3052,12 +3052,12 @@
         "awaySpread": 31.5,
         "oddsProvider": "DraftKings",
         "overUnder": 56.5,
-        "completed": false,
-        "status": "7:38 - 3rd",
-        "state": "in",
-        "awayScore": 10,
-        "homeScore": 31,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 16,
+        "homeScore": 45,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -3082,12 +3082,12 @@
         "awaySpread": 14.5,
         "oddsProvider": "DraftKings",
         "overUnder": 52.5,
-        "completed": false,
-        "status": "5:33 - 1st",
-        "state": "in",
-        "awayScore": 0,
-        "homeScore": 7,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 14,
+        "homeScore": 66,
+        "hotterResult": "W"
       },
       {
         "sport": "NHL",
@@ -3112,12 +3112,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 5.5,
-        "completed": false,
-        "status": "9:27 - 1st",
-        "state": "in",
-        "awayScore": 2,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 4,
+        "homeScore": 1,
+        "hotterResult": "W"
       },
       {
         "sport": "NBA",
@@ -3142,11 +3142,11 @@
         "awaySpread": 4.5,
         "oddsProvider": "DraftKings",
         "overUnder": 219.5,
-        "completed": false,
-        "status": "10/10 - 6:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 106,
+        "homeScore": 114,
         "hotterResult": null
       },
       {
@@ -3172,12 +3172,12 @@
         "awaySpread": -10,
         "oddsProvider": "DraftKings",
         "overUnder": 48.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 30,
+        "homeScore": 13,
+        "hotterResult": "W"
       },
       {
         "sport": "NBA",
@@ -3202,12 +3202,12 @@
         "awaySpread": 1.5,
         "oddsProvider": "DraftKings",
         "overUnder": 234.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 119,
+        "homeScore": 117,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -3232,12 +3232,12 @@
         "awaySpread": 4.5,
         "oddsProvider": "DraftKings",
         "overUnder": 57.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 27,
+        "homeScore": 21,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -3262,12 +3262,12 @@
         "awaySpread": -2.5,
         "oddsProvider": "DraftKings",
         "overUnder": 47.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 7,
+        "homeScore": 13,
+        "hotterResult": "L"
       },
       {
         "sport": "NBA",
@@ -3292,12 +3292,12 @@
         "awaySpread": -2.5,
         "oddsProvider": "DraftKings",
         "overUnder": 223.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final/OT",
+        "state": "post",
+        "awayScore": 108,
+        "homeScore": 114,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -3322,12 +3322,12 @@
         "awaySpread": 15.5,
         "oddsProvider": "DraftKings",
         "overUnder": 54.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 13,
+        "homeScore": 38,
+        "hotterResult": "W"
       },
       {
         "sport": "NHL",
@@ -3352,12 +3352,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 6.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 6,
+        "homeScore": 3,
+        "hotterResult": "L"
       },
       {
         "sport": "NHL",
@@ -3382,12 +3382,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 5.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 5,
+        "homeScore": 2,
+        "hotterResult": "W"
       },
       {
         "sport": "NHL",
@@ -3412,12 +3412,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 6.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 4,
+        "homeScore": 1,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -3442,12 +3442,12 @@
         "awaySpread": -9.5,
         "oddsProvider": "DraftKings",
         "overUnder": 50.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final/OT",
+        "state": "post",
+        "awayScore": 34,
+        "homeScore": 35,
+        "hotterResult": "L"
       },
       {
         "sport": "NHL",
@@ -3472,12 +3472,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 5.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 3,
+        "homeScore": 5,
+        "hotterResult": "L"
       },
       {
         "sport": "NHL",
@@ -3502,12 +3502,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 6.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final/SO",
+        "state": "post",
+        "awayScore": 1,
+        "homeScore": 2,
+        "hotterResult": "W"
       },
       {
         "sport": "NHL",
@@ -3532,12 +3532,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 6.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
+        "completed": true,
+        "status": "Final/SO",
+        "state": "post",
         "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "homeScore": 1,
+        "hotterResult": "L"
       },
       {
         "sport": "NHL",
@@ -3562,12 +3562,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 5.5,
-        "completed": false,
-        "status": "10/10 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final/SO",
+        "state": "post",
+        "awayScore": 2,
+        "homeScore": 3,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -3592,12 +3592,12 @@
         "awaySpread": 2.5,
         "oddsProvider": "DraftKings",
         "overUnder": 51.5,
-        "completed": false,
-        "status": "10/10 - 7:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 20,
+        "homeScore": 17,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -3622,12 +3622,12 @@
         "awaySpread": -7,
         "oddsProvider": "DraftKings",
         "overUnder": 48.5,
-        "completed": false,
-        "status": "10/10 - 7:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 28,
+        "homeScore": 7,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -3652,12 +3652,12 @@
         "awaySpread": 13.5,
         "oddsProvider": "DraftKings",
         "overUnder": 49.5,
-        "completed": false,
-        "status": "10/10 - 7:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 25,
+        "homeScore": 28,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -3682,12 +3682,12 @@
         "awaySpread": -1.5,
         "oddsProvider": "DraftKings",
         "overUnder": 54.5,
-        "completed": false,
-        "status": "10/10 - 7:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 31,
+        "homeScore": 23,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -3712,12 +3712,12 @@
         "awaySpread": -7.5,
         "oddsProvider": "DraftKings",
         "overUnder": 51.5,
-        "completed": false,
-        "status": "10/10 - 7:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 27,
+        "homeScore": 24,
+        "hotterResult": "L"
       },
       {
         "sport": "NHL",
@@ -3742,12 +3742,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 5.5,
-        "completed": false,
-        "status": "10/10 - 7:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 5,
+        "homeScore": 3,
+        "hotterResult": "L"
       },
       {
         "sport": "NCAAF",
@@ -3772,11 +3772,11 @@
         "awaySpread": 3,
         "oddsProvider": "DraftKings",
         "overUnder": 48.5,
-        "completed": false,
-        "status": "10/10 - 7:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 31,
+        "homeScore": 32,
         "hotterResult": null
       },
       {
@@ -3802,12 +3802,12 @@
         "awaySpread": 5.5,
         "oddsProvider": "DraftKings",
         "overUnder": 225.5,
-        "completed": false,
-        "status": "10/10 - 8:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 106,
+        "homeScore": 144,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -3832,12 +3832,12 @@
         "awaySpread": 15.5,
         "oddsProvider": "DraftKings",
         "overUnder": 49.5,
-        "completed": false,
-        "status": "10/10 - 8:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 24,
+        "homeScore": 41,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -3862,12 +3862,12 @@
         "awaySpread": -2.5,
         "oddsProvider": "DraftKings",
         "overUnder": 49.5,
-        "completed": false,
-        "status": "10/10 - 8:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 13,
+        "homeScore": 41,
+        "hotterResult": "L"
       },
       {
         "sport": "NBA",
@@ -3892,12 +3892,12 @@
         "awaySpread": -2.5,
         "oddsProvider": "DraftKings",
         "overUnder": 234.5,
-        "completed": false,
-        "status": "10/10 - 8:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 125,
+        "homeScore": 124,
+        "hotterResult": "W"
       },
       {
         "sport": "MLB",
@@ -3922,12 +3922,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 7.5,
-        "completed": false,
-        "status": "10/10 - 8:00 PM EDT",
-        "state": "pre",
+        "completed": true,
+        "status": "Final",
+        "state": "post",
         "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "homeScore": 2,
+        "hotterResult": "W"
       },
       {
         "sport": "NBA",
@@ -3952,12 +3952,12 @@
         "awaySpread": 5.5,
         "oddsProvider": "DraftKings",
         "overUnder": 229.5,
-        "completed": false,
-        "status": "10/10 - 8:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 106,
+        "homeScore": 111,
+        "hotterResult": "L"
       },
       {
         "sport": "NHL",
@@ -3982,12 +3982,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 6.5,
-        "completed": false,
-        "status": "10/10 - 10:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 4,
+        "homeScore": 2,
+        "hotterResult": "W"
       },
       {
         "sport": "NHL",
@@ -4012,12 +4012,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 6.5,
-        "completed": false,
-        "status": "10/10 - 10:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final/OT",
+        "state": "post",
+        "awayScore": 1,
+        "homeScore": 2,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -4042,12 +4042,12 @@
         "awaySpread": 20.5,
         "oddsProvider": "DraftKings",
         "overUnder": 51.5,
-        "completed": false,
-        "status": "10/10 - 10:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 12,
+        "homeScore": 30,
+        "hotterResult": "L"
       },
       {
         "sport": "NBA",
@@ -4072,12 +4072,12 @@
         "awaySpread": -7.5,
         "oddsProvider": "DraftKings",
         "overUnder": 223.5,
-        "completed": false,
-        "status": "10/10 - 10:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 98,
+        "homeScore": 102,
+        "hotterResult": "W"
       },
       {
         "sport": "NCAAF",
@@ -4102,12 +4102,12 @@
         "awaySpread": -8.5,
         "oddsProvider": "DraftKings",
         "overUnder": 48.5,
-        "completed": false,
-        "status": "10/10 - 10:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 38,
+        "homeScore": 31,
+        "hotterResult": "W"
       }
     ]
   },
@@ -4751,5 +4751,6 @@
         "hotterResult": null
       }
     ]
-  }
+  },
+  "gradedAt": "2026-10-11T14:25:23.710Z"
 }

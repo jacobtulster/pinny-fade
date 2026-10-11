@@ -94,14 +94,16 @@
       rawGames.length +
       ' games · ' +
       (sportsPresent.join(', ') || 'no sports');
-    if (viewingArchive) {
-      statusMeta.textContent =
-        (when ? 'Snapshot ' + when : 'Archived slate') + ' · no live poll';
-      return;
-    }
     const liveBit = lastScoreSync
       ? ' · scores ' + new Date(lastScoreSync).toLocaleTimeString()
       : '';
+    if (viewingArchive) {
+      statusMeta.textContent =
+        (when ? 'Snapshot ' + when : 'Archived slate') +
+        liveBit +
+        ' · polling finals for grades';
+      return;
+    }
     statusMeta.textContent =
       (when ? 'Snapshot ' + when : '') +
       liveBit +
@@ -491,7 +493,7 @@
 
   function startLiveScores() {
     stopLiveScores();
-    if (viewingArchive) return;
+    // Archives also poll so mid-slate snapshots get finals + W/P/L.
     syncLiveScores();
     liveTimer = setInterval(syncLiveScores, LIVE_POLL_MS);
   }
@@ -576,10 +578,10 @@
       const data = await res.json();
       viewingArchive = dateEt;
       activeDay = 'today';
-      stopLiveScores();
       if (!applyPayload(data)) return;
       // Archived "tomorrow" tab still useful for that snapshot
       updateDayTabs();
+      startLiveScores();
     } catch (err) {
       statusText.textContent = 'Archive failed';
       statusMeta.textContent = (err && err.message) || String(err);
