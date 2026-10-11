@@ -4,14 +4,32 @@
   const ALL_SPORTS = ['NFL', 'NCAAF', 'NHL', 'MLB', 'NBA', 'WNBA', 'NCAAB'];
 
   const SPORT_META = {
-    NFL: { path: 'football/nfl' },
-    NCAAF: { path: 'football/college-football', groups: '80' },
-    NHL: { path: 'hockey/nhl' },
-    MLB: { path: 'baseball/mlb' },
-    NBA: { path: 'basketball/nba' },
-    WNBA: { path: 'basketball/wnba' },
-    NCAAB: { path: 'basketball/mens-college-basketball', groups: '50' },
+    NFL: { path: 'football/nfl', metric: 'spread' },
+    NCAAF: {
+      path: 'football/college-football',
+      groups: '80',
+      metric: 'spread',
+    },
+    NHL: {
+      path: 'hockey/nhl',
+      metric: 'mlEdge',
+      coreLeague: 'hockey/leagues/nhl',
+    },
+    MLB: {
+      path: 'baseball/mlb',
+      metric: 'mlEdge',
+      coreLeague: 'baseball/leagues/mlb',
+    },
+    NBA: { path: 'basketball/nba', metric: 'spread' },
+    WNBA: { path: 'basketball/wnba', metric: 'spread' },
+    NCAAB: {
+      path: 'basketball/mens-college-basketball',
+      groups: '50',
+      metric: 'spread',
+    },
   };
+
+  const ESPN = 'https://site.api.espn.com/apis/site/v2/sports';
 
   const LIVE_POLL_MS = 20000;
 
@@ -85,7 +103,9 @@
       ? ' · scores ' + new Date(lastScoreSync).toLocaleTimeString()
       : '';
     statusMeta.textContent =
-      (when ? 'Snapshot ' + when : '') + liveBit + ' · live poll 20s';
+      (when ? 'Snapshot ' + when : '') +
+      liveBit +
+      ' · live poll 20s · fills missing lines';
   }
 
   function parseEspnScore(raw) {
@@ -202,6 +222,209 @@
     return changed;
   }
 
+  function parseAmerican(v) {
+    if (v == null || v === '') return null;
+    const n = Number(String(v).replace(/^\+/, ''));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function fmtAmerican(n) {
+    if (n == null || !Number.isFinite(n)) return null;
+    return (n > 0 ? '+' : '') + String(n);
+  }
+
+  function needsLine(g) {
+    if (!g || g.completed) return false;
+    if (g.line) return false;
+    const metric = g.metric || (SPORT_META[g.sport] && SPORT_META[g.sport].metric);
+    if (metric === 'mlEdge') {
+      return g.awayMl == null || g.homeMl == null;
+    }
+    return g.homeSpread == null && g.awaySpread == null;
+  }
+
+  async function fetchSummaryOdds(sportPath, gameId) {
+    try {
+      const res = await fetch(
+        ESPN + '/' + sportPath + '/summary?event=' + gameId,
+        { cache: 'no-store' }
+      );
+      if (!res.ok) return null;
+      const j = await res.json();
+      const pc = (j.pickcenter || [])[0];
+      if (!pc) return null;
+      const awayOdds = pc.awayTeamOdds || {};
+      const homeOdds = pc.homeTeamOdds || {};
+      let homeSpread = null;
+      if (pc.spread != null && Number.isFinite(Number(pc.spread))) {
+        const mag = Math.abs(Number(pc.spread));
+        if (homeOdds.favorite) homeSpread = -mag;
+        else if (awayOdds.favorite) homeSpread = mag;
+        else homeSpread = Number(pc.spread);
+      }
+      return {
+        provider: (pc.provider && pc.provider.name) || 'ESPN',
+        details: pc.details || null,
+        homeSpread,
+        awaySpread: homeSpread == null ? null : -homeSpread,
+        awayMl: parseAmerican(awayOdds.moneyLine),
+        homeMl: parseAmerican(homeOdds.moneyLine),
+        overUnder: pc.overUnder != null ? Number(pc.overUnder) : null,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function fetchCoreMlOdds(leaguePath, gameId) {
+    try {
+      const url =
+        'https://sports.core.api.espn.com/v2/sports/' +
+        leaguePath +
+        '/events/' +
+        gameId +
+        '/competitions/' +
+        gameId +
+        '/odds';
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const j = await res.json();
+      const item = (j.items || [])[0];
+      if (!item) return null;
+      const extract = (side) => {
+        if (!side) return null;
+        const close = side.close && side.close.moneyLine;
+        if (close) {
+          const a = parseAmerican(
+            close.alternateDisplayValue || close.american
+          );
+          if (a != null) return a;
+        }
+        return parseAmerican(side.moneyLine);
+      };
+      return {
+        provider: (item.provider && item.provider.name) || 'ESPN',
+        details: item.details || null,
+        awayMl: extract(item.awayTeamOdds),
+        homeMl: extract(item.homeTeamOdds),
+        homeSpread: null,
+        awaySpread: null,
+        overUnder: item.overUnder != null ? Number(item.overUnder) : null,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function fetchGameOdds(sportId, gameId) {
+    const meta = SPORT_META[sportId];
+    if (!meta) return null;
+    if (meta.coreLeague) {
+      const core = await fetchCoreMlOdds(meta.coreLeague, gameId);
+      if (core) return core;
+    }
+    return fetchSummaryOdds(meta.path, gameId);
+  }
+
+  function oddsLabel(g, odds) {
+    if (!odds) return null;
+    const metric = g.metric || (SPORT_META[g.sport] && SPORT_META[g.sport].metric);
+    if (metric === 'mlEdge') {
+      const a = fmtAmerican(odds.awayMl);
+      const h = fmtAmerican(odds.homeMl);
+      if (a && h) return a + ' / ' + h;
+      return odds.details || null;
+    }
+    return odds.details || null;
+  }
+
+  function mlLabel(odds) {
+    if (!odds) return null;
+    const a = fmtAmerican(odds.awayMl);
+    const h = fmtAmerican(odds.homeMl);
+    if (a && h) return a + ' / ' + h;
+    return null;
+  }
+
+  function applyOddsToGame(g, odds) {
+    if (!g || !odds) return false;
+    const line = oddsLabel(g, odds);
+    const ml = mlLabel(odds);
+    const hasSpread = odds.homeSpread != null || odds.awaySpread != null;
+    const hasMl = odds.awayMl != null && odds.homeMl != null;
+    if (!line && !hasSpread && !hasMl) return false;
+
+    let dirty = false;
+    if (line && g.line !== line) {
+      g.line = line;
+      dirty = true;
+    }
+    if (ml && g.ml !== ml) {
+      g.ml = ml;
+      dirty = true;
+    }
+    if (odds.awayMl != null && g.awayMl !== odds.awayMl) {
+      g.awayMl = odds.awayMl;
+      dirty = true;
+    }
+    if (odds.homeMl != null && g.homeMl !== odds.homeMl) {
+      g.homeMl = odds.homeMl;
+      dirty = true;
+    }
+    if (odds.homeSpread != null && g.homeSpread !== odds.homeSpread) {
+      g.homeSpread = odds.homeSpread;
+      dirty = true;
+    }
+    if (odds.awaySpread != null && g.awaySpread !== odds.awaySpread) {
+      g.awaySpread = odds.awaySpread;
+      dirty = true;
+    }
+    if (odds.provider && g.oddsProvider !== odds.provider) {
+      g.oddsProvider = odds.provider;
+      dirty = true;
+    }
+    if (odds.overUnder != null && g.overUnder !== odds.overUnder) {
+      g.overUnder = odds.overUnder;
+      dirty = true;
+    }
+    if (dirty || g.completed) {
+      const graded = gradeHotterResult(g);
+      if (g.hotterResult !== graded) {
+        g.hotterResult = graded;
+        dirty = true;
+      }
+    }
+    return dirty;
+  }
+
+  async function fillMissingOdds() {
+    const missing = [];
+    ['today', 'tomorrow'].forEach((dayKey) => {
+      const block = days[dayKey];
+      if (!block || !block.games) return;
+      block.games.forEach((g) => {
+        if (needsLine(g)) missing.push(g);
+      });
+    });
+    if (!missing.length) return 0;
+
+    let filled = 0;
+    const CONCURRENCY = 4;
+    for (let i = 0; i < missing.length; i += CONCURRENCY) {
+      const batch = missing.slice(i, i + CONCURRENCY);
+      const results = await Promise.all(
+        batch.map(async (g) => {
+          const odds = await fetchGameOdds(g.sport, g.gameId);
+          return { g, odds };
+        })
+      );
+      results.forEach(({ g, odds }) => {
+        if (applyOddsToGame(g, odds)) filled++;
+      });
+    }
+    return filled;
+  }
+
   async function syncLiveScores() {
     if (liveInFlight) return;
     liveInFlight = true;
@@ -229,27 +452,26 @@
         });
       });
 
-      if (!jobs.length) return;
-
-      const results = await Promise.allSettled(jobs);
       let changed = 0;
-      const byDay = { today: new Map(), tomorrow: new Map() };
-      results.forEach((r) => {
-        if (r.status !== 'fulfilled') return;
-        const { dayKey, rows } = r.value;
-        rows.forEach((row) => byDay[dayKey].set(row.gameId, row));
-      });
+      if (jobs.length) {
+        const results = await Promise.allSettled(jobs);
+        const byDay = { today: new Map(), tomorrow: new Map() };
+        results.forEach((r) => {
+          if (r.status !== 'fulfilled') return;
+          const { dayKey, rows } = r.value;
+          rows.forEach((row) => byDay[dayKey].set(row.gameId, row));
+        });
 
-      changed += mergeLiveIntoGames(days.today.games, byDay.today);
-      changed += mergeLiveIntoGames(days.tomorrow.games, byDay.tomorrow);
+        changed += mergeLiveIntoGames(days.today.games, byDay.today);
+        changed += mergeLiveIntoGames(days.tomorrow.games, byDay.tomorrow);
+      }
+
+      changed += await fillMissingOdds();
 
       lastScoreSync = Date.now();
       // Keep the active view pointing at the same (mutated) array.
       rawGames = (days[activeDay] && days[activeDay].games) || [];
       updateDayTabs();
-      updateStatus(
-        window.__TODAY_GAMES_DATA__ && window.__TODAY_GAMES_DATA__.fetchedAt
-      );
       if (changed > 0) render();
       else updateStatus(currentFetchedAt);
     } catch (err) {
