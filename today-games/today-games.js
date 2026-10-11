@@ -785,46 +785,69 @@
           : '';
 
       tr.innerHTML =
-        '<td class="num">' +
+        '<td class="num" data-label="#">' +
         (i + 1) +
         '</td>' +
-        '<td><span class="sport-pill ' +
+        '<td data-label="Sport"><span class="sport-pill ' +
         escapeHtml(String(g.sport || '').toLowerCase()) +
         '">' +
         escapeHtml(g.sport) +
         '</span></td>' +
         '<td class="kickoff' +
         (isStartingSoon(g) ? ' time-soon' : '') +
-        '">' +
+        '" data-label="Kickoff">' +
         escapeHtml(g.kickoffEt || '—') +
         '</td>' +
-        '<td class="matchup">' +
+        '<td class="matchup" data-label="Matchup">' +
         escapeHtml(g.awayTeam) +
         '<span class="vs">@</span>' +
         escapeHtml(g.homeTeam) +
         '</td>' +
-        '<td class="odds">' +
+        '<td class="odds" data-label="Line">' +
         escapeHtml(g.line || '—') +
         '</td>' +
-        '<td class="num">' +
+        '<td class="num" data-label="Away avg">' +
         fmtAvg(g.awayAvg) +
         '</td>' +
-        '<td class="num">' +
+        '<td class="num" data-label="Home avg">' +
         fmtAvg(g.homeAvg) +
         '</td>' +
         '<td class="num gap' +
         gapGlowClass(g) +
-        '">' +
+        '" data-label="Gap">' +
         (g.gap == null ? '—' : g.gap.toFixed(2)) +
         '</td>' +
-        '<td class="edge">' +
+        '<td class="edge" data-label="Hotter">' +
         hotter +
         '</td>' +
-        '<td>' +
+        '<td data-label="Status">' +
         escapeHtml((g.status || '') + scoreBit) +
         '</td>';
       body.appendChild(tr);
     });
+    updateMobileSortChips();
+  }
+
+  function updateMobileSortChips() {
+    document.querySelectorAll('.sort-chip').forEach((btn) => {
+      const key = btn.getAttribute('data-sort');
+      const active = key === sortKey;
+      btn.classList.toggle('active', active);
+      const arrow = active ? (sortDir === 'desc' ? ' ↓' : ' ↑') : '';
+      if (key === 'time') btn.textContent = 'Kickoff' + arrow;
+      if (key === 'gap') btn.textContent = 'Gap' + arrow;
+    });
+  }
+
+  function setSort(key) {
+    if (!key) return;
+    if (sortKey === key) {
+      sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+    } else {
+      sortKey = key;
+      sortDir = key === 'time' ? 'asc' : 'desc';
+    }
+    render();
   }
 
   document.querySelectorAll('.day-tab').forEach((btn) => {
@@ -844,14 +867,13 @@
 
   document.querySelectorAll('th.sortable').forEach((th) => {
     th.addEventListener('click', () => {
-      const key = th.getAttribute('data-sort');
-      if (sortKey === key) {
-        sortDir = sortDir === 'desc' ? 'asc' : 'desc';
-      } else {
-        sortKey = key;
-        sortDir = key === 'time' ? 'asc' : 'desc';
-      }
-      render();
+      setSort(th.getAttribute('data-sort'));
+    });
+  });
+
+  document.querySelectorAll('.sort-chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setSort(btn.getAttribute('data-sort'));
     });
   });
 
