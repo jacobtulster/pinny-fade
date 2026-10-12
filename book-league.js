@@ -486,17 +486,74 @@
       .trim();
   }
 
+  /** Common board abbrevs → tokens that appear in ESPN display names. */
+  const TEAM_ABBR = {
+    lad: ['lad', 'dodgers'],
+    mil: ['mil', 'brewers'],
+    nyy: ['nyy', 'yankees'],
+    bos: ['bos', 'red sox'],
+    chc: ['chc', 'cubs'],
+    chw: ['chw', 'white sox'],
+    cle: ['cle', 'guardians'],
+    det: ['det', 'tigers'],
+    kc: ['kc', 'royals'],
+    min: ['min', 'twins'],
+    hou: ['hou', 'astros'],
+    sea: ['sea', 'mariners'],
+    tex: ['tex', 'rangers'],
+    oak: ['oak', 'athletics'],
+    ath: ['ath', 'athletics'],
+    laa: ['laa', 'angels'],
+    sd: ['sd', 'padres'],
+    sf: ['sf', 'giants'],
+    ari: ['ari', 'diamondbacks'],
+    col: ['col', 'rockies'],
+    atl: ['atl', 'braves'],
+    phi: ['phi', 'phillies'],
+    nym: ['nym', 'mets'],
+    wsh: ['wsh', 'nationals'],
+    mia: ['mia', 'marlins'],
+    cin: ['cin', 'reds'],
+    pit: ['pit', 'pirates'],
+    stl: ['stl', 'cardinals'],
+    tb: ['tb', 'rays'],
+    tor: ['tor', 'blue jays'],
+    bal: ['bal', 'orioles'],
+  };
+
+  function teamTokens(s) {
+    const n = normTeam(s);
+    if (!n) return [];
+    const out = new Set([n]);
+    const compact = n.replace(/\s+/g, '');
+    if (compact) out.add(compact);
+    const alias = TEAM_ABBR[compact] || TEAM_ABBR[n];
+    if (alias) alias.forEach((t) => out.add(t));
+    n.split(' ').filter(Boolean).forEach((t) => out.add(t));
+    return Array.from(out);
+  }
+
   function teamsMatch(a, b) {
     if (!a || !b) return false;
     if (a === b) return true;
+    // Abbrev ↔ full name (e.g. "lad" vs "los angeles dodgers")
+    const ta = teamTokens(a);
+    const tb = teamTokens(b);
+    for (let i = 0; i < ta.length; i++) {
+      for (let j = 0; j < tb.length; j++) {
+        if (ta[i] === tb[j] && ta[i].length >= 2) return true;
+        if (ta[i].length >= 4 && tb[j].length >= 4 && (ta[i].includes(tb[j]) || tb[j].includes(ta[i])))
+          return true;
+      }
+    }
     if (a.length >= 5 && b.length >= 5 && (a.includes(b) || b.includes(a))) return true;
-    const ta = a.split(' ').filter(Boolean);
-    const tb = b.split(' ').filter(Boolean);
-    if (ta.length >= 2 && tb.length >= 2) {
-      const setB = new Set(tb);
+    const wa = a.split(' ').filter(Boolean);
+    const wb = b.split(' ').filter(Boolean);
+    if (wa.length >= 2 && wb.length >= 2) {
+      const setB = new Set(wb);
       let hit = 0;
-      for (let i = 0; i < ta.length; i++) if (setB.has(ta[i])) hit++;
-      if (hit >= Math.min(2, ta.length, tb.length) && hit / Math.max(ta.length, tb.length) >= 0.6) {
+      for (let i = 0; i < wa.length; i++) if (setB.has(wa[i])) hit++;
+      if (hit >= Math.min(2, wa.length, wb.length) && hit / Math.max(wa.length, wb.length) >= 0.6) {
         return true;
       }
     }
@@ -546,6 +603,10 @@
       if (!home || !away) continue;
       const awayName = (away.team && (away.team.displayName || away.team.name)) || '';
       const homeName = (home.team && (home.team.displayName || home.team.name)) || '';
+      const awayAbbr = (away.team && away.team.abbreviation) || '';
+      const homeAbbr = (home.team && home.team.abbreviation) || '';
+      const awayShort = (away.team && away.team.shortDisplayName) || '';
+      const homeShort = (home.team && home.team.shortDisplayName) || '';
       const awayScore = Number(away.score);
       const homeScore = Number(home.score);
       out.push({
@@ -555,6 +616,10 @@
         homeName: homeName,
         awayCanon: normTeam(awayName),
         homeCanon: normTeam(homeName),
+        awayAbbr: normTeam(awayAbbr),
+        homeAbbr: normTeam(homeAbbr),
+        awayShort: normTeam(awayShort),
+        homeShort: normTeam(homeShort),
         awayScore: Number.isFinite(awayScore) ? awayScore : null,
         homeScore: Number.isFinite(homeScore) ? homeScore : null,
       });
@@ -591,9 +656,15 @@
     }
     const awayWon = ev.awayScore > ev.homeScore;
     let winnerTeamIdx = null;
-    if (teamsMatch(a, ev.awayCanon) && teamsMatch(h, ev.homeCanon)) {
+    if (
+      sideMatch(a, ev.awayCanon, ev.awayAbbr, ev.awayShort) &&
+      sideMatch(h, ev.homeCanon, ev.homeAbbr, ev.homeShort)
+    ) {
       winnerTeamIdx = awayWon ? 0 : 1;
-    } else if (teamsMatch(a, ev.homeCanon) && teamsMatch(h, ev.awayCanon)) {
+    } else if (
+      sideMatch(a, ev.homeCanon, ev.homeAbbr, ev.homeShort) &&
+      sideMatch(h, ev.awayCanon, ev.awayAbbr, ev.awayShort)
+    ) {
       winnerTeamIdx = awayWon ? 1 : 0;
     } else {
       return dirty;
@@ -605,6 +676,16 @@
     return true;
   }
 
+  function sideMatch(snapSide, canon, abbr, shortName) {
+    return (
+      teamsMatch(snapSide, canon) ||
+      teamsMatch(snapSide, abbr) ||
+      teamsMatch(snapSide, shortName) ||
+      (abbr && snapSide === abbr) ||
+      (shortName && snapSide === shortName)
+    );
+  }
+
   function matchEspnEvent(snap, events) {
     const teams = Array.isArray(snap.teams) ? snap.teams : [];
     if (teams.length < 2) return null;
@@ -612,8 +693,16 @@
     const h = normTeam(teams[1]);
     for (let i = 0; i < events.length; i++) {
       const e = events[i];
-      if (teamsMatch(a, e.awayCanon) && teamsMatch(h, e.homeCanon)) return e;
-      if (teamsMatch(a, e.homeCanon) && teamsMatch(h, e.awayCanon)) return e;
+      if (
+        sideMatch(a, e.awayCanon, e.awayAbbr, e.awayShort) &&
+        sideMatch(h, e.homeCanon, e.homeAbbr, e.homeShort)
+      )
+        return e;
+      if (
+        sideMatch(a, e.homeCanon, e.homeAbbr, e.homeShort) &&
+        sideMatch(h, e.awayCanon, e.awayAbbr, e.awayShort)
+      )
+        return e;
     }
     return null;
   }
