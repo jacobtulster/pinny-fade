@@ -125,14 +125,45 @@
           favRank: b.favRank,
           favJoint: !!b.favJoint,
           dogPrice: b.dogPrice,
+          dogRank: b.dogRank,
+          dogJoint: !!b.dogJoint,
         };
       })
-      .filter((b) => b.favRank != null || b.favPrice != null)
+      .filter((b) => b.favRank != null || b.favPrice != null || b.dogPrice != null)
       .sort((a, b) => {
         const ra = a.favRank == null ? 999 : a.favRank;
         const rb = b.favRank == null ? 999 : b.favRank;
         return ra - rb || String(a.name).localeCompare(String(b.name));
       });
+  }
+
+  /** Same tier rules as 4codds-consensus attachPriceRankBadge. */
+  function priceRankTierClass(rank) {
+    if (rank === 1) return 'tier-best';
+    if (rank >= 2 && rank <= 4) return 'tier-green';
+    if (rank >= 10) return 'tier-deep';
+    return '';
+  }
+
+  function tdrBadgeHtml(rank, joint, y, role) {
+    if (rank == null || !y) return '<span class="pc-price-rank muted">—</span>';
+    const tier = priceRankTierClass(rank);
+    const cls =
+      'pc-price-rank' +
+      (role === 'dog' ? ' role-dog' : '') +
+      (tier ? ' ' + tier : '') +
+      (joint ? ' is-joint' : '');
+    const label = (joint ? 'J' : '') + rank + '/' + y;
+    const title = (joint ? 'joint ' : '') + role + ' ' + rank + ' of ' + y;
+    return (
+      '<span class="' +
+      cls +
+      '" title="' +
+      escapeHtml(title) +
+      '">' +
+      escapeHtml(label) +
+      '</span>'
+    );
   }
 
   function aggregateStandings() {
@@ -291,14 +322,10 @@
     );
   }
 
-  function tdrLabel(rank, joint, y) {
-    if (rank == null) return '—';
-    return (joint ? 'J' : '') + rank + '/' + (y || '?');
-  }
-
   function detailHtml(s) {
     const won = favWonSnap(s);
     const rows = bookRows(s);
+    const y = s.y;
     if (!rows.length) {
       return '<div style="padding:10px 12px;opacity:.7">No book prices.</div>';
     }
@@ -315,17 +342,17 @@
             '<td>' +
             escapeHtml(b.name || b.code) +
             '</td>' +
-            '<td>' +
+            '<td class="bl-px">' +
             escapeHtml(fmtAm(b.favPrice)) +
             '</td>' +
             '<td>' +
-            escapeHtml(tdrLabel(b.favRank, b.favJoint, s.y)) +
+            tdrBadgeHtml(b.favRank, b.favJoint, y, 'fav') +
             '</td>' +
-            '<td>' +
+            '<td class="bl-px">' +
             escapeHtml(fmtAm(b.dogPrice)) +
             '</td>' +
             '<td>' +
-            escapeHtml(tdrLabel(b.dogRank, b.dogJoint, s.y)) +
+            tdrBadgeHtml(b.dogRank, b.dogJoint, y, 'dog') +
             '</td>' +
             '<td class="' +
             ptsClass(pts) +

@@ -86,8 +86,38 @@
       padding: 6px 10px !important;
       border-top: 1px solid rgba(255, 255, 255, 0.06);
       text-align: left;
+      vertical-align: middle;
     }
     .bl-books th { opacity: 0.7; font-weight: 700; }
+    .bl-books .bl-px {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+    /* 1:1 with 4codds-consensus .pc-price-rank badges */
+    .pc-price-rank {
+      display: inline-block;
+      margin-top: 0;
+      padding: 0 4px;
+      border-radius: 4px;
+      font: 800 9px/1.2 Sora, system-ui, sans-serif;
+      font-variant-numeric: tabular-nums;
+      color: #000 !important;
+      letter-spacing: 0;
+      pointer-events: none;
+      white-space: nowrap;
+      background: #7ecbff;
+    }
+    .pc-price-rank.role-dog { background: #ff8a8a; }
+    .pc-price-rank.role-draw { background: #ffa500; }
+    .pc-price-rank.tier-best { background: #ffeb3b; }
+    .pc-price-rank.tier-green { background: #a6ff4d; }
+    .pc-price-rank.tier-deep { background: #4a9eff; }
+    .pc-price-rank.muted {
+      background: transparent;
+      color: rgba(232, 238, 248, 0.4) !important;
+      font-weight: 600;
+      padding: 0;
+    }
     .bl-standings .rank {
       opacity: 0.55;
       font-variant-numeric: tabular-nums;
