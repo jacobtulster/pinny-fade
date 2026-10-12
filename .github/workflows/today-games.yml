@@ -1,0 +1,61 @@
+# Refresh today-games live slate + archive for GitHub Pages.
+# Runs on a schedule (ET-aware UTC times) and on manual dispatch.
+name: Today Games
+
+on:
+  schedule:
+    # After ET midnight (covers EDT 00:05 and EST 00:05)
+    - cron: '5 4 * * *' # 00:05 EDT / 23:05 EST prior day
+    - cron: '5 5 * * *' # 00:05 EST / 01:05 EDT
+    # Morning + afternoon line refreshes (ET)
+    - cron: '15 12 * * *' # ~08:15 ET
+    - cron: '15 17 * * *' # ~13:15 ET
+    - cron: '15 22 * * *' # ~18:15 ET
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'today-games/fetch.js'
+      - '.github/workflows/today-games.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: today-games
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch slate
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+        run: node today-games/fetch.js
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            today-games/today-games-data.js \
+            today-games/today-games-data.json \
+            today-games/history/
+          if git diff --staged --quiet; then
+            echo "No slate changes."
+            exit 0
+          fi
+          git commit -m "chore(today-games): refresh slate $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push

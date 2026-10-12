@@ -67,25 +67,56 @@
     activeSport = 'ALL';
   }
 
+  function etTodayString() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /** Live file still has yesterday's slate after ET midnight until fetch.js runs. */
+  function isLiveStale() {
+    if (viewingArchive) return false;
+    const real = etTodayString();
+    const fileToday = (days.today && days.today.dateEt) || null;
+    return !!(real && fileToday && fileToday < real);
+  }
+
   function updateDayTabs() {
+    const stale = isLiveStale();
     document.querySelectorAll('.day-tab').forEach((btn) => {
       const day = btn.getAttribute('data-day');
       btn.classList.toggle('active', day === activeDay);
       const n = ((days[day] && days[day].games) || []).length;
-      if (day === 'today') btn.textContent = 'Today' + (n ? ' (' + n + ')' : '');
+      if (day === 'today') {
+        btn.textContent =
+          (stale ? 'Prior day' : 'Today') + (n ? ' (' + n + ')' : '');
+      }
       if (day === 'tomorrow') {
-        btn.textContent = 'Tomorrow' + (n ? ' (' + n + ')' : '');
+        btn.textContent =
+          (stale ? 'Calendar today' : 'Tomorrow') + (n ? ' (' + n + ')' : '');
       }
     });
   }
 
   function updateStatus(fetchedAt) {
     const when = fetchedAt ? new Date(fetchedAt).toLocaleString() : '';
+    const stale = isLiveStale();
     const label = viewingArchive
       ? 'Archive'
-      : activeDay === 'tomorrow'
-        ? 'Tomorrow'
-        : 'Today';
+      : stale
+        ? activeDay === 'tomorrow'
+          ? 'Calendar today (was tomorrow in stale file)'
+          : 'Stale (prior ET day)'
+        : activeDay === 'tomorrow'
+          ? 'Tomorrow'
+          : 'Today';
     statusText.textContent =
       label +
       ' · ' +
@@ -107,7 +138,9 @@
     statusMeta.textContent =
       (when ? 'Snapshot ' + when : '') +
       liveBit +
-      ' · live poll 20s · fills missing lines';
+      (stale
+        ? ' · STALE — run node today-games/fetch.js and push'
+        : ' · live poll 20s · fills missing lines');
   }
 
   function parseEspnScore(raw) {

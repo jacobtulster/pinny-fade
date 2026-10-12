@@ -72,12 +72,12 @@
       "awaySpread": 7.5,
       "oddsProvider": "DraftKings",
       "overUnder": 41.5,
-      "completed": false,
-      "status": "12:27 - 2nd",
-      "state": "in",
-      "awayScore": 0,
-      "homeScore": 7,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 17,
+      "homeScore": 19,
+      "hotterResult": "L"
     },
     {
       "sport": "NFL",
@@ -102,12 +102,12 @@
       "awaySpread": -1.5,
       "oddsProvider": "DraftKings",
       "overUnder": 47.5,
-      "completed": false,
-      "status": "10/11 - 1:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 7,
+      "homeScore": 31,
+      "hotterResult": "L"
     },
     {
       "sport": "NFL",
@@ -132,12 +132,12 @@
       "awaySpread": 3.5,
       "oddsProvider": "DraftKings",
       "overUnder": 45.5,
-      "completed": false,
-      "status": "10/11 - 1:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 17,
+      "homeScore": 45,
+      "hotterResult": "L"
     },
     {
       "sport": "NFL",
@@ -162,12 +162,12 @@
       "awaySpread": -1.5,
       "oddsProvider": "DraftKings",
       "overUnder": 41.5,
-      "completed": false,
-      "status": "10/11 - 1:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 23,
+      "homeScore": 13,
+      "hotterResult": "W"
     },
     {
       "sport": "NFL",
@@ -192,12 +192,12 @@
       "awaySpread": -7,
       "oddsProvider": "DraftKings",
       "overUnder": 43.5,
-      "completed": false,
-      "status": "10/11 - 1:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 31,
+      "homeScore": 24,
+      "hotterResult": "P"
     },
     {
       "sport": "NFL",
@@ -222,12 +222,12 @@
       "awaySpread": 3.5,
       "oddsProvider": "DraftKings",
       "overUnder": 41.5,
-      "completed": false,
-      "status": "10/11 - 1:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final/OT",
+      "state": "post",
+      "awayScore": 27,
+      "homeScore": 27,
+      "hotterResult": "W"
     },
     {
       "sport": "NFL",
@@ -252,12 +252,12 @@
       "awaySpread": -6.5,
       "oddsProvider": "DraftKings",
       "overUnder": 37.5,
-      "completed": false,
-      "status": "10/11 - 1:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 26,
+      "homeScore": 3,
+      "hotterResult": "L"
     },
     {
       "sport": "NFL",
@@ -282,12 +282,12 @@
       "awaySpread": 3,
       "oddsProvider": "DraftKings",
       "overUnder": 41.5,
-      "completed": false,
-      "status": "10/11 - 1:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 22,
+      "homeScore": 34,
+      "hotterResult": "L"
     },
     {
       "sport": "NFL",
@@ -312,12 +312,12 @@
       "awaySpread": 2.5,
       "oddsProvider": "DraftKings",
       "overUnder": 38.5,
-      "completed": false,
-      "status": "10/11 - 1:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 12,
+      "homeScore": 17,
+      "hotterResult": "L"
     },
     {
       "sport": "NFL",
@@ -342,12 +342,12 @@
       "awaySpread": -3.5,
       "oddsProvider": "DraftKings",
       "overUnder": 41.5,
-      "completed": false,
-      "status": "10/11 - 4:05 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 23,
+      "homeScore": 17,
+      "hotterResult": "W"
     },
     {
       "sport": "NFL",
@@ -372,12 +372,12 @@
       "awaySpread": 3,
       "oddsProvider": "DraftKings",
       "overUnder": 46.5,
-      "completed": false,
-      "status": "10/11 - 4:25 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 32,
+      "homeScore": 29,
+      "hotterResult": "W"
     },
     {
       "sport": "NFL",
@@ -402,12 +402,12 @@
       "awaySpread": -5.5,
       "oddsProvider": "DraftKings",
       "overUnder": 54.5,
-      "completed": false,
-      "status": "10/11 - 4:25 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 45,
+      "homeScore": 21,
+      "hotterResult": "L"
     },
     {
       "sport": "NHL",
@@ -432,12 +432,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 6.5,
-      "completed": false,
-      "status": "10/11 - 5:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 5,
+      "homeScore": 3,
+      "hotterResult": "W"
     },
     {
       "sport": "NHL",
@@ -462,12 +462,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 6.5,
-      "completed": false,
-      "status": "10/11 - 6:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 2,
+      "homeScore": 6,
+      "hotterResult": "W"
     },
     {
       "sport": "NBA",
@@ -492,12 +492,12 @@
       "awaySpread": 5.5,
       "oddsProvider": "DraftKings",
       "overUnder": 227.5,
-      "completed": false,
-      "status": "10/11 - 6:30 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 105,
+      "homeScore": 119,
+      "hotterResult": "L"
     },
     {
       "sport": "NBA",
@@ -522,12 +522,12 @@
       "awaySpread": 4.5,
       "oddsProvider": "DraftKings",
       "overUnder": 221.5,
-      "completed": false,
-      "status": "10/11 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 90,
+      "homeScore": 105,
+      "hotterResult": "L"
     },
     {
       "sport": "NHL",
@@ -552,12 +552,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 5.5,
-      "completed": false,
-      "status": "10/11 - 7:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 4,
+      "homeScore": 1,
+      "hotterResult": "W"
     },
     {
       "sport": "MLB",
@@ -582,12 +582,12 @@
       "awaySpread": null,
       "oddsProvider": "DraftKings",
       "overUnder": 6,
-      "completed": false,
-      "status": "10/11 - 8:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 1,
+      "homeScore": 2,
+      "hotterResult": "L"
     },
     {
       "sport": "NFL",
@@ -612,12 +612,12 @@
       "awaySpread": 3,
       "oddsProvider": "DraftKings",
       "overUnder": 43.5,
-      "completed": false,
-      "status": "10/11 - 8:20 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final/OT",
+      "state": "post",
+      "awayScore": 30,
+      "homeScore": 23,
+      "hotterResult": "L"
     },
     {
       "sport": "NBA",
@@ -642,12 +642,12 @@
       "awaySpread": 8.5,
       "oddsProvider": "DraftKings",
       "overUnder": 233.5,
-      "completed": false,
-      "status": "10/11 - 9:00 PM EDT",
-      "state": "pre",
-      "awayScore": 0,
-      "homeScore": 0,
-      "hotterResult": null
+      "completed": true,
+      "status": "Final",
+      "state": "post",
+      "awayScore": 128,
+      "homeScore": 133,
+      "hotterResult": "L"
     }
   ],
   "today": {
@@ -712,12 +712,12 @@
         "awaySpread": 7.5,
         "oddsProvider": "DraftKings",
         "overUnder": 41.5,
-        "completed": false,
-        "status": "12:27 - 2nd",
-        "state": "in",
-        "awayScore": 0,
-        "homeScore": 7,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 17,
+        "homeScore": 19,
+        "hotterResult": "L"
       },
       {
         "sport": "NFL",
@@ -742,12 +742,12 @@
         "awaySpread": -1.5,
         "oddsProvider": "DraftKings",
         "overUnder": 47.5,
-        "completed": false,
-        "status": "10/11 - 1:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 7,
+        "homeScore": 31,
+        "hotterResult": "L"
       },
       {
         "sport": "NFL",
@@ -772,12 +772,12 @@
         "awaySpread": 3.5,
         "oddsProvider": "DraftKings",
         "overUnder": 45.5,
-        "completed": false,
-        "status": "10/11 - 1:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 17,
+        "homeScore": 45,
+        "hotterResult": "L"
       },
       {
         "sport": "NFL",
@@ -802,12 +802,12 @@
         "awaySpread": -1.5,
         "oddsProvider": "DraftKings",
         "overUnder": 41.5,
-        "completed": false,
-        "status": "10/11 - 1:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 23,
+        "homeScore": 13,
+        "hotterResult": "W"
       },
       {
         "sport": "NFL",
@@ -832,12 +832,12 @@
         "awaySpread": -7,
         "oddsProvider": "DraftKings",
         "overUnder": 43.5,
-        "completed": false,
-        "status": "10/11 - 1:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 31,
+        "homeScore": 24,
+        "hotterResult": "P"
       },
       {
         "sport": "NFL",
@@ -862,12 +862,12 @@
         "awaySpread": 3.5,
         "oddsProvider": "DraftKings",
         "overUnder": 41.5,
-        "completed": false,
-        "status": "10/11 - 1:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final/OT",
+        "state": "post",
+        "awayScore": 27,
+        "homeScore": 27,
+        "hotterResult": "W"
       },
       {
         "sport": "NFL",
@@ -892,12 +892,12 @@
         "awaySpread": -6.5,
         "oddsProvider": "DraftKings",
         "overUnder": 37.5,
-        "completed": false,
-        "status": "10/11 - 1:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 26,
+        "homeScore": 3,
+        "hotterResult": "L"
       },
       {
         "sport": "NFL",
@@ -922,12 +922,12 @@
         "awaySpread": 3,
         "oddsProvider": "DraftKings",
         "overUnder": 41.5,
-        "completed": false,
-        "status": "10/11 - 1:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 22,
+        "homeScore": 34,
+        "hotterResult": "L"
       },
       {
         "sport": "NFL",
@@ -952,12 +952,12 @@
         "awaySpread": 2.5,
         "oddsProvider": "DraftKings",
         "overUnder": 38.5,
-        "completed": false,
-        "status": "10/11 - 1:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 12,
+        "homeScore": 17,
+        "hotterResult": "L"
       },
       {
         "sport": "NFL",
@@ -982,12 +982,12 @@
         "awaySpread": -3.5,
         "oddsProvider": "DraftKings",
         "overUnder": 41.5,
-        "completed": false,
-        "status": "10/11 - 4:05 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 23,
+        "homeScore": 17,
+        "hotterResult": "W"
       },
       {
         "sport": "NFL",
@@ -1012,12 +1012,12 @@
         "awaySpread": 3,
         "oddsProvider": "DraftKings",
         "overUnder": 46.5,
-        "completed": false,
-        "status": "10/11 - 4:25 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 32,
+        "homeScore": 29,
+        "hotterResult": "W"
       },
       {
         "sport": "NFL",
@@ -1042,12 +1042,12 @@
         "awaySpread": -5.5,
         "oddsProvider": "DraftKings",
         "overUnder": 54.5,
-        "completed": false,
-        "status": "10/11 - 4:25 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 45,
+        "homeScore": 21,
+        "hotterResult": "L"
       },
       {
         "sport": "NHL",
@@ -1072,12 +1072,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 6.5,
-        "completed": false,
-        "status": "10/11 - 5:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 5,
+        "homeScore": 3,
+        "hotterResult": "W"
       },
       {
         "sport": "NHL",
@@ -1102,12 +1102,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 6.5,
-        "completed": false,
-        "status": "10/11 - 6:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 2,
+        "homeScore": 6,
+        "hotterResult": "W"
       },
       {
         "sport": "NBA",
@@ -1132,12 +1132,12 @@
         "awaySpread": 5.5,
         "oddsProvider": "DraftKings",
         "overUnder": 227.5,
-        "completed": false,
-        "status": "10/11 - 6:30 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 105,
+        "homeScore": 119,
+        "hotterResult": "L"
       },
       {
         "sport": "NBA",
@@ -1162,12 +1162,12 @@
         "awaySpread": 4.5,
         "oddsProvider": "DraftKings",
         "overUnder": 221.5,
-        "completed": false,
-        "status": "10/11 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 90,
+        "homeScore": 105,
+        "hotterResult": "L"
       },
       {
         "sport": "NHL",
@@ -1192,12 +1192,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 5.5,
-        "completed": false,
-        "status": "10/11 - 7:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 4,
+        "homeScore": 1,
+        "hotterResult": "W"
       },
       {
         "sport": "MLB",
@@ -1222,12 +1222,12 @@
         "awaySpread": null,
         "oddsProvider": "DraftKings",
         "overUnder": 6,
-        "completed": false,
-        "status": "10/11 - 8:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 1,
+        "homeScore": 2,
+        "hotterResult": "L"
       },
       {
         "sport": "NFL",
@@ -1252,12 +1252,12 @@
         "awaySpread": 3,
         "oddsProvider": "DraftKings",
         "overUnder": 43.5,
-        "completed": false,
-        "status": "10/11 - 8:20 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final/OT",
+        "state": "post",
+        "awayScore": 30,
+        "homeScore": 23,
+        "hotterResult": "L"
       },
       {
         "sport": "NBA",
@@ -1282,12 +1282,12 @@
         "awaySpread": 8.5,
         "oddsProvider": "DraftKings",
         "overUnder": 233.5,
-        "completed": false,
-        "status": "10/11 - 9:00 PM EDT",
-        "state": "pre",
-        "awayScore": 0,
-        "homeScore": 0,
-        "hotterResult": null
+        "completed": true,
+        "status": "Final",
+        "state": "post",
+        "awayScore": 128,
+        "homeScore": 133,
+        "hotterResult": "L"
       }
     ]
   },
@@ -1632,5 +1632,5 @@
       }
     ]
   },
-  "gradedAt": "2026-10-11T14:25:23.982Z"
+  "gradedAt": "2026-10-12T21:01:02.626Z"
 }
