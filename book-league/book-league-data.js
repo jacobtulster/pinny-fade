@@ -1,6 +1,164 @@
 window.__BOOK_LEAGUE_DATA__ = {
-  "updatedAt": "2026-10-13T21:10:12.240Z",
+  "updatedAt": "2026-10-13T21:18:18.864Z",
   "snaps": [
+    {
+      "id": "6acd07a4b29da91e8f82449a",
+      "at": 1791926293675,
+      "startAt": 1791936000000,
+      "hourBucket": 497757,
+      "sport": "baseball",
+      "league": "MLB",
+      "market": "Moneyline",
+      "teams": [
+        "Cleveland Guardians",
+        "Tampa Bay Rays"
+      ],
+      "favSide": 1,
+      "dogSide": 0,
+      "favTeam": "Tampa Bay Rays",
+      "dogTeam": "Cleveland Guardians",
+      "y": 13,
+      "best": {
+        "fav": {
+          "book": "Circa",
+          "price": -124
+        },
+        "dog": {
+          "book": "Bone",
+          "price": 120
+        }
+      },
+      "open": {
+        "away": 117,
+        "home": -129,
+        "fav": -129,
+        "dog": 117
+      },
+      "books": {
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -124,
+          "favRank": 1,
+          "favJoint": false,
+          "dogPrice": 114,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -129,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": 119,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -130,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": 115,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -126,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": 114,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "AMAPOLA": {
+          "name": "Amapola",
+          "favPrice": -126,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": 114,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "SHARPAG": {
+          "name": "Sharp AG",
+          "favPrice": -125,
+          "favRank": 2,
+          "favJoint": false,
+          "dogPrice": 114,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -127,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 117,
+          "dogRank": 6,
+          "dogJoint": false
+        },
+        "PPH": {
+          "name": "PerHead",
+          "favPrice": -130,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": 120,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -127,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 115,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "APEX": {
+          "name": "Bone",
+          "favPrice": -131,
+          "favRank": 11,
+          "favJoint": true,
+          "dogPrice": 120,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -129,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": 119,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "PREDICTFUN": {
+          "name": "Predict.fun",
+          "favPrice": -131,
+          "favRank": 11,
+          "favJoint": true,
+          "dogPrice": 119,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -136,
+          "favRank": 13,
+          "favJoint": false,
+          "dogPrice": 114,
+          "dogRank": 9,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/13 - 8:00 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
     {
       "id": "6acd0fdcb29da91e8f8253bb",
       "at": 1791925810147,
