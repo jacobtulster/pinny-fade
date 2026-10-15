@@ -1,6 +1,164 @@
 window.__BOOK_LEAGUE_DATA__ = {
-  "updatedAt": "2026-10-15T22:02:34.089Z",
+  "updatedAt": "2026-10-15T22:31:19.269Z",
   "snaps": [
+    {
+      "id": "6ad00f0c331cd6f53a29d725",
+      "at": 1792103476610,
+      "startAt": 1792108800000,
+      "hourBucket": 497806,
+      "sport": "baseball",
+      "league": "MLB",
+      "market": "Moneyline",
+      "teams": [
+        "Milwaukee Brewers",
+        "Los Angeles Dodgers"
+      ],
+      "favSide": 1,
+      "dogSide": 0,
+      "favTeam": "Los Angeles Dodgers",
+      "dogTeam": "Milwaukee Brewers",
+      "y": 12,
+      "best": {
+        "fav": {
+          "book": "Sharp AG",
+          "price": -140
+        },
+        "dog": {
+          "book": "Buckeye PPH",
+          "price": 137
+        }
+      },
+      "open": {
+        "away": 137,
+        "home": -152,
+        "fav": -152,
+        "dog": 137
+      },
+      "books": {
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -141,
+          "favRank": 2,
+          "favJoint": false,
+          "dogPrice": 131,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -145,
+          "favRank": 4,
+          "favJoint": true,
+          "dogPrice": 133,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -144,
+          "favRank": 3,
+          "favJoint": false,
+          "dogPrice": 130,
+          "dogRank": 8,
+          "dogJoint": true
+        },
+        "AMAPOLA": {
+          "name": "Amapola",
+          "favPrice": null,
+          "favRank": null,
+          "favJoint": false,
+          "dogPrice": 129,
+          "dogRank": 10,
+          "dogJoint": true
+        },
+        "SHARPAG": {
+          "name": "Sharp AG",
+          "favPrice": -140,
+          "favRank": 1,
+          "favJoint": false,
+          "dogPrice": 127,
+          "dogRank": 13,
+          "dogJoint": false
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -150,
+          "favRank": 11,
+          "favJoint": false,
+          "dogPrice": 137,
+          "dogRank": 1,
+          "dogJoint": false
+        },
+        "PPH": {
+          "name": "PerHead",
+          "favPrice": -145,
+          "favRank": 4,
+          "favJoint": true,
+          "dogPrice": 130,
+          "dogRank": 8,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -145,
+          "favRank": 4,
+          "favJoint": true,
+          "dogPrice": 131,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "APEX": {
+          "name": "Bone",
+          "favPrice": -147,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": 134,
+          "dogRank": 2,
+          "dogJoint": false
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -145,
+          "favRank": 4,
+          "favJoint": true,
+          "dogPrice": 132,
+          "dogRank": 5,
+          "dogJoint": false
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -145,
+          "favRank": 4,
+          "favJoint": true,
+          "dogPrice": 133,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "PREDICTFUN": {
+          "name": "Predict.fun",
+          "favPrice": -147,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": 129,
+          "dogRank": 10,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -154,
+          "favRank": 12,
+          "favJoint": false,
+          "dogPrice": 129,
+          "dogRank": 10,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/15 - 8:00 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
     {
       "id": "6acc2448b29da91e8f80e5d4",
       "at": 1792101751566,
