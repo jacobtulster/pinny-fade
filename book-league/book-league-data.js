@@ -1,5 +1,5 @@
 window.__BOOK_LEAGUE_DATA__ = {
-  "updatedAt": "2026-10-16T07:23:37.833Z",
+  "updatedAt": "2026-10-16T22:23:45.998Z",
   "snaps": [
     {
       "id": "6ad00f0c331cd6f53a29d725",
