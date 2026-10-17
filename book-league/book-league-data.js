@@ -1,5 +1,5 @@
 window.__BOOK_LEAGUE_DATA__ = {
-  "updatedAt": "2026-10-17T00:33:41.109Z",
+  "updatedAt": "2026-10-17T10:03:05.826Z",
   "snaps": [
     {
       "id": "6ad0e7db331cd6f53a2bf38f",
@@ -365,11 +365,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/16 - 10:00 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 0,
+      "gradedAt": 1792231383357,
+      "status": "Final",
+      "awayScore": 4,
+      "homeScore": 2
     },
     {
       "id": "6acbdba2b29da91e8f802a19",
