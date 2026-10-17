@@ -1,5 +1,5 @@
 window.__BOOK_LEAGUE_DATA__ = {
-  "updatedAt": "2026-10-17T22:21:30.912Z",
+  "updatedAt": "2026-10-17T22:42:43.126Z",
   "snaps": [
     {
       "id": "6acc2448b29da91e8f80e5d6",
@@ -2100,7 +2100,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "14:24 - 1st",
+      "status": "3:15 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -6180,7 +6180,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "14:24 - 1st",
+      "status": "3:15 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -8116,7 +8116,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "14:24 - 1st",
+      "status": "3:15 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -40260,7 +40260,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "14:24 - 1st",
+      "status": "3:15 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -40407,11 +40407,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": false
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "9:00 - 3rd",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792276956284,
+      "status": "Final",
+      "awayScore": 2,
+      "homeScore": 4
     },
     {
       "id": "6ad22ce64386f3d0727ce292",
