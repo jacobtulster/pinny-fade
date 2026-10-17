@@ -1,6 +1,173 @@
 window.__BOOK_LEAGUE_DATA__ = {
-  "updatedAt": "2026-10-17T15:30:27.842Z",
+  "updatedAt": "2026-10-17T15:37:21.842Z",
   "snaps": [
+    {
+      "id": "6acbd117b29da91e8f8008fe",
+      "at": 1792251177857,
+      "startAt": 1792265400000,
+      "hourBucket": 497847,
+      "sport": "football",
+      "league": "NCAAF",
+      "market": "Spread",
+      "teams": [
+        "UNLV",
+        "Air Force"
+      ],
+      "favSide": 0,
+      "dogSide": 1,
+      "favTeam": "UNLV",
+      "dogTeam": "Air Force",
+      "y": 14,
+      "best": {
+        "fav": {
+          "book": "LowVig",
+          "price": -109
+        },
+        "dog": {
+          "book": "LowVig",
+          "price": -103
+        }
+      },
+      "open": {
+        "away": -103,
+        "home": -113,
+        "fav": -103,
+        "dog": -113
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -110,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -106,
+          "dogRank": 2,
+          "dogJoint": false
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -110,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -119,
+          "favRank": 3,
+          "favJoint": false,
+          "dogPrice": 102,
+          "dogRank": 12,
+          "dogJoint": false
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -118,
+          "favRank": 2,
+          "favJoint": false,
+          "dogPrice": -103,
+          "dogRank": 13,
+          "dogJoint": false
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -110,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "SHARPAG": {
+          "name": "Sharp AG",
+          "favPrice": -104,
+          "favRank": 4,
+          "favJoint": true,
+          "dogPrice": -116,
+          "dogRank": 11,
+          "dogJoint": false
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -110,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "PPH": {
+          "name": "PerHead",
+          "favPrice": -110,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -109,
+          "favRank": 7,
+          "favJoint": false,
+          "dogPrice": -103,
+          "dogRank": 1,
+          "dogJoint": false
+        },
+        "APEX": {
+          "name": "Bone",
+          "favPrice": -109,
+          "favRank": 1,
+          "favJoint": false,
+          "dogPrice": -111,
+          "dogRank": 14,
+          "dogJoint": false
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -107,
+          "favRank": 6,
+          "favJoint": false,
+          "dogPrice": -107,
+          "dogRank": 3,
+          "dogJoint": false
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -110,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -104,
+          "favRank": 4,
+          "favJoint": true,
+          "dogPrice": -108,
+          "dogRank": 4,
+          "dogJoint": false
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -110,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 5,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": null,
+      "awayScore": null,
+      "homeScore": null
+    },
     {
       "id": "6acbdba2b29da91e8f802a0d",
       "at": 1792250832895,
@@ -8640,6 +8807,173 @@ window.__BOOK_LEAGUE_DATA__ = {
       "homeScore": null
     },
     {
+      "id": "6acbdcd1b29da91e8f802f1c",
+      "at": 1792247025295,
+      "startAt": 1792290600000,
+      "hourBucket": 497846,
+      "sport": "football",
+      "league": "NCAAF",
+      "market": "Spread",
+      "teams": [
+        "Fresno State",
+        "San Diego State"
+      ],
+      "favSide": 0,
+      "dogSide": 1,
+      "favTeam": "Fresno State",
+      "dogTeam": "San Diego State",
+      "y": 14,
+      "best": {
+        "fav": {
+          "book": "Pinnacle",
+          "price": 102
+        },
+        "dog": {
+          "book": "Buckeye PPH",
+          "price": -110
+        }
+      },
+      "open": {
+        "away": -110,
+        "home": -106,
+        "fav": -110,
+        "dog": -106
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -102,
+          "favRank": 6,
+          "favJoint": false,
+          "dogPrice": -114,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -105,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": 102,
+          "favRank": 1,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -116,
+          "favRank": 14,
+          "favJoint": false,
+          "dogPrice": -105,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -103,
+          "favRank": 7,
+          "favJoint": false,
+          "dogPrice": -117,
+          "dogRank": 13,
+          "dogJoint": false
+        },
+        "SHARPAG": {
+          "name": "Sharp AG",
+          "favPrice": -106,
+          "favRank": 10,
+          "favJoint": false,
+          "dogPrice": -114,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -110,
+          "favRank": 11,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "PPH": {
+          "name": "PerHead",
+          "favPrice": -110,
+          "favRank": 11,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -101,
+          "favRank": 4,
+          "favJoint": true,
+          "dogPrice": -111,
+          "dogRank": 5,
+          "dogJoint": false
+        },
+        "APEX": {
+          "name": "Bone",
+          "favPrice": 100,
+          "favRank": 3,
+          "favJoint": false,
+          "dogPrice": -120,
+          "dogRank": 14,
+          "dogJoint": false
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -101,
+          "favRank": 4,
+          "favJoint": true,
+          "dogPrice": -114,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -105,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": 102,
+          "favRank": 1,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -115,
+          "favRank": 11,
+          "favJoint": true,
+          "dogPrice": -105,
+          "dogRank": 1,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": null,
+      "awayScore": null,
+      "homeScore": null
+    },
+    {
       "id": "6acbdcd1b29da91e8f802f18",
       "at": 1792247025295,
       "startAt": 1792290600000,
@@ -8806,173 +9140,6 @@ window.__BOOK_LEAGUE_DATA__ = {
           "favJoint": true,
           "dogPrice": -115,
           "dogRank": 13,
-          "dogJoint": true
-        }
-      },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": null,
-      "awayScore": null,
-      "homeScore": null
-    },
-    {
-      "id": "6acbdcd1b29da91e8f802f1c",
-      "at": 1792247025295,
-      "startAt": 1792290600000,
-      "hourBucket": 497846,
-      "sport": "football",
-      "league": "NCAAF",
-      "market": "Spread",
-      "teams": [
-        "Fresno State",
-        "San Diego State"
-      ],
-      "favSide": 0,
-      "dogSide": 1,
-      "favTeam": "Fresno State",
-      "dogTeam": "San Diego State",
-      "y": 14,
-      "best": {
-        "fav": {
-          "book": "Pinnacle",
-          "price": 102
-        },
-        "dog": {
-          "book": "Buckeye PPH",
-          "price": -110
-        }
-      },
-      "open": {
-        "away": -110,
-        "home": -106,
-        "fav": -110,
-        "dog": -106
-      },
-      "books": {
-        "VERTEX": {
-          "name": "Vertex",
-          "favPrice": -102,
-          "favRank": 6,
-          "favJoint": false,
-          "dogPrice": -114,
-          "dogRank": 6,
-          "dogJoint": true
-        },
-        "SHARPBOOKC": {
-          "name": "Circa",
-          "favPrice": -105,
-          "favRank": 8,
-          "favJoint": true,
-          "dogPrice": -115,
-          "dogRank": 9,
-          "dogJoint": true
-        },
-        "PINNACLE": {
-          "name": "Pinnacle",
-          "favPrice": 102,
-          "favRank": 1,
-          "favJoint": true,
-          "dogPrice": -115,
-          "dogRank": 9,
-          "dogJoint": true
-        },
-        "SHARPBOOKB": {
-          "name": "Bookmaker",
-          "favPrice": -116,
-          "favRank": 14,
-          "favJoint": false,
-          "dogPrice": -105,
-          "dogRank": 1,
-          "dogJoint": true
-        },
-        "PARADISE": {
-          "name": "Paradise",
-          "favPrice": -103,
-          "favRank": 7,
-          "favJoint": false,
-          "dogPrice": -117,
-          "dogRank": 13,
-          "dogJoint": false
-        },
-        "SHARPAG": {
-          "name": "Sharp AG",
-          "favPrice": -106,
-          "favRank": 10,
-          "favJoint": false,
-          "dogPrice": -114,
-          "dogRank": 6,
-          "dogJoint": true
-        },
-        "BUCKEYE": {
-          "name": "Buckeye PPH",
-          "favPrice": -110,
-          "favRank": 11,
-          "favJoint": true,
-          "dogPrice": -110,
-          "dogRank": 1,
-          "dogJoint": true
-        },
-        "PPH": {
-          "name": "PerHead",
-          "favPrice": -110,
-          "favRank": 11,
-          "favJoint": true,
-          "dogPrice": -110,
-          "dogRank": 1,
-          "dogJoint": true
-        },
-        "LOWVIG": {
-          "name": "LowVig",
-          "favPrice": -101,
-          "favRank": 4,
-          "favJoint": true,
-          "dogPrice": -111,
-          "dogRank": 5,
-          "dogJoint": false
-        },
-        "APEX": {
-          "name": "Bone",
-          "favPrice": 100,
-          "favRank": 3,
-          "favJoint": false,
-          "dogPrice": -120,
-          "dogRank": 14,
-          "dogJoint": false
-        },
-        "ACESHIGH": {
-          "name": "Aces High",
-          "favPrice": -101,
-          "favRank": 4,
-          "favJoint": true,
-          "dogPrice": -114,
-          "dogRank": 6,
-          "dogJoint": true
-        },
-        "TRYLNK": {
-          "name": "Trylnk",
-          "favPrice": -105,
-          "favRank": 8,
-          "favJoint": true,
-          "dogPrice": -115,
-          "dogRank": 9,
-          "dogJoint": true
-        },
-        "BET105": {
-          "name": "Bet105",
-          "favPrice": 102,
-          "favRank": 1,
-          "favJoint": true,
-          "dogPrice": -115,
-          "dogRank": 9,
-          "dogJoint": true
-        },
-        "BOVADA": {
-          "name": "Bovada",
-          "favPrice": -115,
-          "favRank": 11,
-          "favJoint": true,
-          "dogPrice": -105,
-          "dogRank": 1,
           "dogJoint": true
         }
       },
@@ -18132,6 +18299,164 @@ window.__BOOK_LEAGUE_DATA__ = {
       "homeScore": null
     },
     {
+      "id": "6acbdcd1b29da91e8f802f1c",
+      "at": 1792243402912,
+      "startAt": 1792290600000,
+      "hourBucket": 497845,
+      "sport": "football",
+      "league": "NCAAF",
+      "market": "Spread",
+      "teams": [
+        "Fresno State",
+        "San Diego State"
+      ],
+      "favSide": 0,
+      "dogSide": 1,
+      "favTeam": "Fresno State",
+      "dogTeam": "San Diego State",
+      "y": 13,
+      "best": {
+        "fav": {
+          "book": "Pinnacle",
+          "price": 102
+        },
+        "dog": {
+          "book": "Buckeye PPH",
+          "price": -110
+        }
+      },
+      "open": {
+        "away": -110,
+        "home": -106,
+        "fav": -110,
+        "dog": -106
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -102,
+          "favRank": 6,
+          "favJoint": false,
+          "dogPrice": -114,
+          "dogRank": 6,
+          "dogJoint": false
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -105,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": 102,
+          "favRank": 1,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -116,
+          "favRank": 13,
+          "favJoint": false,
+          "dogPrice": -105,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -103,
+          "favRank": 7,
+          "favJoint": false,
+          "dogPrice": -117,
+          "dogRank": 12,
+          "dogJoint": false
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -110,
+          "favRank": 10,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "PPH": {
+          "name": "PerHead",
+          "favPrice": -110,
+          "favRank": 10,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -101,
+          "favRank": 5,
+          "favJoint": false,
+          "dogPrice": -111,
+          "dogRank": 5,
+          "dogJoint": false
+        },
+        "APEX": {
+          "name": "Bone",
+          "favPrice": 100,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": -120,
+          "dogRank": 13,
+          "dogJoint": false
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": 100,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -105,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": 102,
+          "favRank": 1,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -115,
+          "favRank": 12,
+          "favJoint": false,
+          "dogPrice": -105,
+          "dogRank": 1,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": null,
+      "awayScore": null,
+      "homeScore": null
+    },
+    {
       "id": "6acbdcd1b29da91e8f802f18",
       "at": 1792243402912,
       "startAt": 1792290600000,
@@ -18289,164 +18614,6 @@ window.__BOOK_LEAGUE_DATA__ = {
           "favJoint": true,
           "dogPrice": -115,
           "dogRank": 12,
-          "dogJoint": true
-        }
-      },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": null,
-      "awayScore": null,
-      "homeScore": null
-    },
-    {
-      "id": "6acbdcd1b29da91e8f802f1c",
-      "at": 1792243402912,
-      "startAt": 1792290600000,
-      "hourBucket": 497845,
-      "sport": "football",
-      "league": "NCAAF",
-      "market": "Spread",
-      "teams": [
-        "Fresno State",
-        "San Diego State"
-      ],
-      "favSide": 0,
-      "dogSide": 1,
-      "favTeam": "Fresno State",
-      "dogTeam": "San Diego State",
-      "y": 13,
-      "best": {
-        "fav": {
-          "book": "Pinnacle",
-          "price": 102
-        },
-        "dog": {
-          "book": "Buckeye PPH",
-          "price": -110
-        }
-      },
-      "open": {
-        "away": -110,
-        "home": -106,
-        "fav": -110,
-        "dog": -106
-      },
-      "books": {
-        "VERTEX": {
-          "name": "Vertex",
-          "favPrice": -102,
-          "favRank": 6,
-          "favJoint": false,
-          "dogPrice": -114,
-          "dogRank": 6,
-          "dogJoint": false
-        },
-        "SHARPBOOKC": {
-          "name": "Circa",
-          "favPrice": -105,
-          "favRank": 8,
-          "favJoint": true,
-          "dogPrice": -115,
-          "dogRank": 7,
-          "dogJoint": true
-        },
-        "PINNACLE": {
-          "name": "Pinnacle",
-          "favPrice": 102,
-          "favRank": 1,
-          "favJoint": true,
-          "dogPrice": -115,
-          "dogRank": 7,
-          "dogJoint": true
-        },
-        "SHARPBOOKB": {
-          "name": "Bookmaker",
-          "favPrice": -116,
-          "favRank": 13,
-          "favJoint": false,
-          "dogPrice": -105,
-          "dogRank": 1,
-          "dogJoint": true
-        },
-        "PARADISE": {
-          "name": "Paradise",
-          "favPrice": -103,
-          "favRank": 7,
-          "favJoint": false,
-          "dogPrice": -117,
-          "dogRank": 12,
-          "dogJoint": false
-        },
-        "BUCKEYE": {
-          "name": "Buckeye PPH",
-          "favPrice": -110,
-          "favRank": 10,
-          "favJoint": true,
-          "dogPrice": -110,
-          "dogRank": 3,
-          "dogJoint": true
-        },
-        "PPH": {
-          "name": "PerHead",
-          "favPrice": -110,
-          "favRank": 10,
-          "favJoint": true,
-          "dogPrice": -110,
-          "dogRank": 3,
-          "dogJoint": true
-        },
-        "LOWVIG": {
-          "name": "LowVig",
-          "favPrice": -101,
-          "favRank": 5,
-          "favJoint": false,
-          "dogPrice": -111,
-          "dogRank": 5,
-          "dogJoint": false
-        },
-        "APEX": {
-          "name": "Bone",
-          "favPrice": 100,
-          "favRank": 3,
-          "favJoint": true,
-          "dogPrice": -120,
-          "dogRank": 13,
-          "dogJoint": false
-        },
-        "ACESHIGH": {
-          "name": "Aces High",
-          "favPrice": 100,
-          "favRank": 3,
-          "favJoint": true,
-          "dogPrice": -115,
-          "dogRank": 7,
-          "dogJoint": true
-        },
-        "TRYLNK": {
-          "name": "Trylnk",
-          "favPrice": -105,
-          "favRank": 8,
-          "favJoint": true,
-          "dogPrice": -115,
-          "dogRank": 7,
-          "dogJoint": true
-        },
-        "BET105": {
-          "name": "Bet105",
-          "favPrice": 102,
-          "favRank": 1,
-          "favJoint": true,
-          "dogPrice": -115,
-          "dogRank": 7,
-          "dogJoint": true
-        },
-        "BOVADA": {
-          "name": "Bovada",
-          "favPrice": -115,
-          "favRank": 12,
-          "favJoint": false,
-          "dogPrice": -105,
-          "dogRank": 1,
           "dogJoint": true
         }
       },
