@@ -34,6 +34,14 @@
       cursor: pointer;
       user-select: none;
     }
+    .bl-chip.is-active {
+      border-color: rgba(134, 239, 172, 0.55);
+      background: rgba(134, 239, 172, 0.14);
+      color: #bbf7d0;
+    }
+    #sportFilters {
+      margin: 0 0 12px;
+    }
     .bl-section { margin: 0 0 28px; }
     .bl-section h2 {
       margin: 0 0 10px;
@@ -135,7 +143,7 @@
       <div class="brand">
         <h1>Book League</h1>
         <p class="tagline">
-          Auto-synced from 4codds · fav TDR points · 1 snap / game / market / rolling hour · ESPN finals
+          Local Tampermonkey + GitHub Pages · fav TDR points · 1 snap / game / market / rolling hour · ESPN finals
         </p>
       </div>
       <div class="controls">
@@ -156,14 +164,16 @@
       <div class="legend-left">
         <span class="hint">
           Scoring: mid = ceil(Y/2). Fav loses → mid − favRank. Fav wins → flip. J3 = 3.
-          Keep 4codds open with the userscript + GitHub token to publish snaps.
+          Userscript always saves locally (TM); GitHub token also publishes to Pages.
+          For a fresh local file copy: TM menu → Book League: Download data.js → replace book-league/book-league-data.js.
         </span>
       </div>
     </section>
 
     <section class="bl-section">
       <h2>League standings</h2>
-      <p class="bl-sub">Graded hourly snaps. Correct = +pts that game; Wrong = −pts; mid rank = 0.</p>
+      <p class="bl-sub">Separate rankings per sport. Correct = +pts that game; Wrong = −pts; mid rank = 0.</p>
+      <div class="bl-filters" id="sportFilters" role="tablist" aria-label="Sport rankings"></div>
       <div class="table-wrap">
         <table class="slate bl-standings" id="standingsTable">
           <thead>
@@ -186,7 +196,7 @@
 
     <section class="bl-section">
       <h2>Snapshots</h2>
-      <p class="bl-sub">1:1 with what the userscript sent (next snap only after 60 minutes from the last for that game/market).</p>
+      <p class="bl-sub">1:1 with what the userscript sent (next snap only after 60 minutes from the last for that game/market). Filtered by sport tab above.</p>
       <div class="bl-filters">
         <input type="search" id="searchInput" placeholder="Filter matchup, book, league…" aria-label="Filter snaps" />
         <label class="bl-chip"><input type="checkbox" id="filterUngraded" /> Ungraded only</label>
@@ -216,7 +226,7 @@
 
     <footer class="footer">
       <p>
-        Personal use · Synced to
+        Personal use · Local file or
         <a href="https://jacobtulster.github.io/pinny-fade/book-league.html">GitHub Pages</a>
         · Not affiliated with 4codds
       </p>

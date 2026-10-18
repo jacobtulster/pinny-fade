@@ -13,19 +13,32 @@
   };
   const LIVE_POLL_MS = 60000;
 
+  const SPORT_ORDER = ['NFL', 'NCAAF', 'NHL', 'MLB', 'NBA', 'WNBA', 'NCAAB'];
+  const SPORT_FILTER_KEY = 'bookLeagueSportFilter';
+
   const statusBar = document.getElementById('statusBar');
   const statusText = document.getElementById('statusText');
   const statusMeta = document.getElementById('statusMeta');
   const snapBody = document.getElementById('snapBody');
   const standingsBody = document.getElementById('standingsBody');
+  const sportFilters = document.getElementById('sportFilters');
   const searchInput = document.getElementById('searchInput');
   const filterUngraded = document.getElementById('filterUngraded');
   const reloadBtn = document.getElementById('reloadBtn');
 
   let snaps = [];
   let updatedAt = null;
+  let dataSource = 'file';
+  let sportFilter = '';
   const openDetail = new Set();
   let espnCache = new Map();
+  let espnStarted = false;
+
+  try {
+    sportFilter = String(sessionStorage.getItem(SPORT_FILTER_KEY) || '');
+  } catch (_) {
+    sportFilter = '';
+  }
 
   function setStatus(kind, text, meta) {
     statusBar.classList.remove('ok', 'warn');
@@ -166,9 +179,91 @@
     );
   }
 
+  function snapSport(s) {
+    return sportKeyFromSnap(s) || 'OTHER';
+  }
+
+  function sportsInData() {
+    const set = new Set();
+    snaps.forEach((s) => {
+      if (s) set.add(snapSport(s));
+    });
+    const ordered = SPORT_ORDER.filter((k) => set.has(k));
+    const rest = Array.from(set)
+      .filter((k) => k !== 'OTHER' && !SPORT_ORDER.includes(k))
+      .sort();
+    if (set.has('OTHER')) rest.push('OTHER');
+    return ordered.concat(rest);
+  }
+
+  function ensureSportFilter() {
+    const sports = sportsInData();
+    if (!sports.length) {
+      sportFilter = '';
+      return sports;
+    }
+    if (!sportFilter || !sports.includes(sportFilter)) {
+      // Prefer sport with the most graded snaps
+      let best = sports[0];
+      let bestN = -1;
+      sports.forEach((k) => {
+        const n = snaps.filter((s) => snapSport(s) === k && isGraded(s)).length;
+        if (n > bestN) {
+          bestN = n;
+          best = k;
+        }
+      });
+      sportFilter = best;
+    }
+    try {
+      sessionStorage.setItem(SPORT_FILTER_KEY, sportFilter);
+    } catch (_) {}
+    return sports;
+  }
+
+  function setSportFilter(key) {
+    sportFilter = String(key || '');
+    try {
+      sessionStorage.setItem(SPORT_FILTER_KEY, sportFilter);
+    } catch (_) {}
+    render();
+  }
+
+  function renderSportFilters() {
+    if (!sportFilters) return;
+    const sports = ensureSportFilter();
+    if (!sports.length) {
+      sportFilters.innerHTML = '';
+      return;
+    }
+    sportFilters.innerHTML = sports
+      .map((k) => {
+        const n = snaps.filter((s) => snapSport(s) === k).length;
+        const graded = snaps.filter((s) => snapSport(s) === k && isGraded(s)).length;
+        const active = k === sportFilter;
+        return (
+          '<button type="button" class="bl-chip' +
+          (active ? ' is-active' : '') +
+          '" role="tab" aria-selected="' +
+          (active ? 'true' : 'false') +
+          '" data-sport="' +
+          escapeHtml(k) +
+          '" title="' +
+          escapeHtml(graded + ' graded / ' + n + ' snaps') +
+          '">' +
+          escapeHtml(k) +
+          ' <span style="opacity:.65;font-weight:600">' +
+          graded +
+          '</span></button>'
+        );
+      })
+      .join('');
+  }
+
   function aggregateStandings() {
     const map = new Map();
     snaps.forEach((s) => {
+      if (sportFilter && snapSport(s) !== sportFilter) return;
       const won = favWonSnap(s);
       if (won == null) return;
       bookRows(s).forEach((b) => {
@@ -200,7 +295,11 @@
     const rows = aggregateStandings();
     if (!rows.length) {
       standingsBody.innerHTML =
-        '<tr class="empty"><td colspan="7">Waiting for graded snaps…</td></tr>';
+        '<tr class="empty"><td colspan="7">' +
+        (sportFilter
+          ? 'No graded ' + escapeHtml(sportFilter) + ' snaps yet…'
+          : 'Waiting for graded snaps…') +
+        '</td></tr>';
       return;
     }
     standingsBody.innerHTML = rows
@@ -245,6 +344,7 @@
       .toLowerCase();
     const onlyUngraded = !!(filterUngraded && filterUngraded.checked);
     return snaps.filter((s) => {
+      if (sportFilter && snapSport(s) !== sportFilter) return false;
       if (onlyUngraded && isGraded(s)) return false;
       if (!q) return true;
       const bookBlob = bookRows(s)
@@ -439,6 +539,12 @@
     snapBody.innerHTML = html.join('');
   }
 
+  function sourceLabel() {
+    if (dataSource === 'local') return 'local Tampermonkey';
+    if (dataSource === 'file') return 'book-league-data.js';
+    return dataSource || 'file';
+  }
+
   function render() {
     const graded = snaps.filter(isGraded).length;
     const when = updatedAt
@@ -450,16 +556,51 @@
         })
       : '—';
     if (!snaps.length) {
-      setStatus('warn', 'No snaps yet', 'Open 4codds · TM menu → Book League: Set GitHub token');
+      setStatus(
+        'warn',
+        'No snaps yet',
+        'Open 4codds with the userscript (local store + optional GitHub token)'
+      );
     } else {
+      const sportBit = sportFilter
+        ? ' · ' +
+          sportFilter +
+          ' ' +
+          snaps.filter((s) => snapSport(s) === sportFilter && isGraded(s)).length +
+          '/' +
+          snaps.filter((s) => snapSport(s) === sportFilter).length
+        : '';
       setStatus(
         'ok',
-        snaps.length + ' snap' + (snaps.length === 1 ? '' : 's') + ' · ' + graded + ' graded',
-        'Data ' + when + ' · ESPN poll ' + LIVE_POLL_MS / 1000 + 's'
+        snaps.length +
+          ' snap' +
+          (snaps.length === 1 ? '' : 's') +
+          ' · ' +
+          graded +
+          ' graded' +
+          sportBit,
+        sourceLabel() + ' · ' + when + ' · ESPN ' + LIVE_POLL_MS / 1000 + 's'
       );
     }
+    renderSportFilters();
     renderStandings();
     renderSnaps();
+  }
+
+  function applyPayload(data, sourceHint) {
+    if (!data || typeof data !== 'object') return false;
+    snaps = Array.isArray(data.snaps) ? data.snaps.slice() : [];
+    snaps.sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0));
+    updatedAt = data.updatedAt || null;
+    dataSource = sourceHint || data.source || 'file';
+    snaps.forEach((s) => openDetail.add(snapKey(s)));
+    render();
+    if (!espnStarted) {
+      espnStarted = true;
+      pollEspn();
+      setInterval(pollEspn, LIVE_POLL_MS);
+    }
+    return true;
   }
 
   function loadFromWindow() {
@@ -467,12 +608,10 @@
     if (!data || typeof data !== 'object') {
       snaps = [];
       updatedAt = null;
+      dataSource = 'file';
       return false;
     }
-    snaps = Array.isArray(data.snaps) ? data.snaps.slice() : [];
-    snaps.sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0));
-    updatedAt = data.updatedAt || null;
-    return true;
+    return applyPayload(data, data.source || 'file');
   }
 
   function normTeam(s) {
@@ -486,39 +625,68 @@
       .trim();
   }
 
-  /** Common board abbrevs → tokens that appear in ESPN display names. */
+  /** Common board abbrevs → ESPN abbr / name tokens (MLB + NHL board quirks). */
   const TEAM_ABBR = {
     lad: ['lad', 'dodgers'],
     mil: ['mil', 'brewers'],
     nyy: ['nyy', 'yankees'],
-    bos: ['bos', 'red sox'],
+    bos: ['bos', 'red sox', 'bruins'],
     chc: ['chc', 'cubs'],
     chw: ['chw', 'white sox'],
     cle: ['cle', 'guardians'],
-    det: ['det', 'tigers'],
+    det: ['det', 'tigers', 'red wings'],
     kc: ['kc', 'royals'],
-    min: ['min', 'twins'],
+    min: ['min', 'twins', 'wild'],
     hou: ['hou', 'astros'],
-    sea: ['sea', 'mariners'],
+    sea: ['sea', 'mariners', 'kraken'],
     tex: ['tex', 'rangers'],
     oak: ['oak', 'athletics'],
-    ath: ['ath', 'athletics'],
+    ath: ['ath', 'athletics', 'oak'],
     laa: ['laa', 'angels'],
     sd: ['sd', 'padres'],
     sf: ['sf', 'giants'],
-    ari: ['ari', 'diamondbacks'],
-    col: ['col', 'rockies'],
+    ari: ['ari', 'diamondbacks', 'pho'],
+    pho: ['pho', 'ari'],
+    col: ['col', 'rockies', 'avalanche'],
     atl: ['atl', 'braves'],
-    phi: ['phi', 'phillies'],
+    phi: ['phi', 'phillies', 'flyers'],
     nym: ['nym', 'mets'],
-    wsh: ['wsh', 'nationals'],
+    wsh: ['wsh', 'nationals', 'was', 'capitals'],
+    was: ['was', 'wsh'],
     mia: ['mia', 'marlins'],
     cin: ['cin', 'reds'],
-    pit: ['pit', 'pirates'],
-    stl: ['stl', 'cardinals'],
-    tb: ['tb', 'rays'],
-    tor: ['tor', 'blue jays'],
+    pit: ['pit', 'pirates', 'penguins'],
+    stl: ['stl', 'cardinals', 'blues'],
+    tb: ['tb', 'rays', 'tbl', 'lightning'],
+    tbl: ['tbl', 'tb', 'lightning'],
+    tor: ['tor', 'blue jays', 'maple leafs'],
     bal: ['bal', 'orioles'],
+    // NHL board ↔ ESPN
+    njd: ['njd', 'nj', 'devils'],
+    nj: ['nj', 'njd'],
+    sjs: ['sjs', 'sj', 'sharks'],
+    sj: ['sj', 'sjs'],
+    lak: ['lak', 'la', 'kings'],
+    la: ['la', 'lak'],
+    mon: ['mon', 'mtl', 'canadiens'],
+    mtl: ['mtl', 'mon'],
+    vgk: ['vgk', 'golden knights'],
+    uta: ['uta', 'mammoth'],
+    nyi: ['nyi', 'islanders'],
+    nyr: ['nyr', 'rangers'],
+    buf: ['buf', 'sabres'],
+    ott: ['ott', 'senators'],
+    car: ['car', 'hurricanes'],
+    wpg: ['wpg', 'jets'],
+    van: ['van', 'canucks'],
+    cgy: ['cgy', 'flames'],
+    edm: ['edm', 'oilers'],
+    nsh: ['nsh', 'predators'],
+    chi: ['chi', 'blackhawks'],
+    fla: ['fla', 'panthers'],
+    ana: ['ana', 'ducks'],
+    dal: ['dal', 'stars'],
+    cbj: ['cbj', 'blue jackets'],
   };
 
   function teamTokens(s) {
@@ -565,12 +733,20 @@
     const sport = String((s && s.sport) || '').toLowerCase();
     if (/MLB|SERIES/i.test(league) || sport === 'baseball' || sport === 'mlb') return 'MLB';
     if (/NHL/i.test(league) || sport === 'hockey' || sport === 'nhl') return 'NHL';
-    if (/NFL/i.test(league) || sport === 'football' || sport === 'nfl') return 'NFL';
+    // League-specific BEFORE generic sport: /football/ncaaf stores sport="football"
     if (/NCAAF|CFB/i.test(league) || sport === 'ncaaf') return 'NCAAF';
-    if (/NBA/i.test(league) || sport === 'basketball' || sport === 'nba') return 'NBA';
-    if (/WNBA/i.test(league)) return 'WNBA';
-    if (/NCAAB|CBB/i.test(league)) return 'NCAAB';
+    if (/NCAAB|CBB/i.test(league) || sport === 'ncaab') return 'NCAAB';
+    if (/WNBA/i.test(league) || sport === 'wnba') return 'WNBA';
+    if (/NFL/i.test(league) || sport === 'football' || sport === 'nfl') return 'NFL';
+    // /^NBA$/ so "WNBA" does not match as NBA
+    if (/^NBA$/i.test(league) || sport === 'basketball' || sport === 'nba') return 'NBA';
     return null;
+  }
+
+  function sportKeysToTry(s) {
+    const k = sportKeyFromSnap(s);
+    if (k) return [k];
+    return ['NHL', 'MLB', 'NFL', 'NBA', 'NCAAF', 'NCAAB', 'WNBA'];
   }
 
   function ymdCompactFromTs(ts) {
@@ -582,6 +758,39 @@
       String(et.getMonth() + 1).padStart(2, '0') +
       String(et.getDate()).padStart(2, '0')
     );
+  }
+
+  function shiftYmdCompact(ymd, deltaDays) {
+    if (!ymd || String(ymd).length !== 8) return null;
+    const y = Number(String(ymd).slice(0, 4));
+    const m = Number(String(ymd).slice(4, 6));
+    const d = Number(String(ymd).slice(6, 8));
+    const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
+    if (isNaN(dt.getTime())) return null;
+    return (
+      dt.getUTCFullYear() +
+      String(dt.getUTCMonth() + 1).padStart(2, '0') +
+      String(dt.getUTCDate()).padStart(2, '0')
+    );
+  }
+
+  function daysToTryForSnap(s) {
+    const primary = ymdCompactFromTs(s.startAt != null ? s.startAt : s.at);
+    const snapDay = ymdCompactFromTs(s.at);
+    const out = [];
+    const seen = new Set();
+    function add(day) {
+      if (!day || seen.has(day)) return;
+      seen.add(day);
+      out.push(day);
+    }
+    add(primary);
+    add(snapDay);
+    if (primary) {
+      add(shiftYmdCompact(primary, -1));
+      add(shiftYmdCompact(primary, 1));
+    }
+    return out;
   }
 
   async function fetchEspnBoard(sportKey, dateCompact) {
@@ -627,6 +836,10 @@
     return out;
   }
 
+  function isEspnPostponedStatus(status) {
+    return /postpon|cancel|suspend|washout/i.test(String(status || ''));
+  }
+
   function applyEspnToSnap(s, ev) {
     if (!ev) return false;
     let dirty = false;
@@ -634,7 +847,10 @@
       s.status = ev.status;
       dirty = true;
     }
-    if (!ev.completed) return dirty;
+    if (!ev.completed) {
+      if (isEspnPostponedStatus(ev.status)) s._blDrop = true;
+      return dirty;
+    }
     if (isGraded(s)) {
       if (s.awayScore !== ev.awayScore || s.homeScore !== ev.homeScore) {
         s.awayScore = ev.awayScore;
@@ -713,21 +929,34 @@
     let changed = false;
     for (let i = 0; i < need.length; i++) {
       const s = need[i];
-      const sportKey = sportKeyFromSnap(s);
-      const day = ymdCompactFromTs(s.at);
-      if (!sportKey || !day) continue;
-      const ck = sportKey + '|' + day;
-      if (!espnCache.has(ck) || Date.now() - (espnCache.get(ck).at || 0) > LIVE_POLL_MS) {
-        try {
-          const events = await fetchEspnBoard(sportKey, day);
-          espnCache.set(ck, { at: Date.now(), events: events });
-        } catch (_) {
-          espnCache.set(ck, { at: Date.now(), events: [] });
+      const sportKeys = sportKeysToTry(s);
+      const days = daysToTryForSnap(s);
+      if (!sportKeys.length || !days.length) continue;
+      let ev = null;
+      for (let si = 0; si < sportKeys.length && !ev; si++) {
+        const sportKey = sportKeys[si];
+        for (let di = 0; di < days.length && !ev; di++) {
+          const day = days[di];
+          const ck = sportKey + '|' + day;
+          if (!espnCache.has(ck) || Date.now() - (espnCache.get(ck).at || 0) > LIVE_POLL_MS) {
+            try {
+              const events = await fetchEspnBoard(sportKey, day);
+              espnCache.set(ck, { at: Date.now(), events: events });
+            } catch (_) {
+              espnCache.set(ck, { at: Date.now(), events: [] });
+            }
+          }
+          const pack = espnCache.get(ck);
+          ev = matchEspnEvent(s, (pack && pack.events) || []);
         }
       }
-      const pack = espnCache.get(ck);
-      const ev = matchEspnEvent(s, (pack && pack.events) || []);
       if (applyEspnToSnap(s, ev)) changed = true;
+    }
+    const kept = snaps.filter((s) => s && !s._blDrop);
+    if (kept.length !== snaps.length) {
+      snaps.length = 0;
+      for (let i = 0; i < kept.length; i++) snaps.push(kept[i]);
+      changed = true;
     }
     if (changed) render();
   }
@@ -745,6 +974,13 @@
     });
   }
 
+  if (sportFilters) {
+    sportFilters.addEventListener('click', (e) => {
+      const btn = e.target && e.target.closest && e.target.closest('[data-sport]');
+      if (!btn) return;
+      setSportFilter(btn.getAttribute('data-sport'));
+    });
+  }
   if (searchInput) searchInput.addEventListener('input', renderSnaps);
   if (filterUngraded) filterUngraded.addEventListener('change', renderSnaps);
   if (reloadBtn) {
@@ -753,14 +989,19 @@
     });
   }
 
+  window.addEventListener('4c-book-league-data', (ev) => {
+    const detail = ev && ev.detail;
+    if (detail) applyPayload(detail, (detail && detail.source) || 'local');
+  });
+
   if (loadFromWindow()) {
-    // Show every book's prices + TDRs by default (collapse still works).
-    snaps.forEach((s) => openDetail.add(snapKey(s)));
-    render();
-    pollEspn();
-    setInterval(pollEspn, LIVE_POLL_MS);
+    // Initial paint from file / userscript hydrate. ESPN starts inside applyPayload.
   } else {
-    setStatus('warn', 'No data file', 'Missing book-league/book-league-data.js');
+    setStatus(
+      'warn',
+      'No data yet',
+      'Open 4codds with userscript, or keep book-league/book-league-data.js'
+    );
     render();
   }
 })();
