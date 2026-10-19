@@ -1,6 +1,173 @@
 window.__BOOK_LEAGUE_DATA__ = {
-  "updatedAt": "2026-10-19T23:19:40.018Z",
+  "updatedAt": "2026-10-19T23:44:22.478Z",
   "snaps": [
+    {
+      "id": "6acc696cb29da91e8f81762f",
+      "at": 1792453454558,
+      "startAt": 1792455300000,
+      "hourBucket": 497903,
+      "sport": "football",
+      "league": "NFL",
+      "market": "Spread",
+      "teams": [
+        "Washington Commanders",
+        "San Francisco 49ers"
+      ],
+      "favSide": 1,
+      "dogSide": 0,
+      "favTeam": "San Francisco 49ers",
+      "dogTeam": "Washington Commanders",
+      "y": 14,
+      "best": {
+        "fav": {
+          "book": "Bet105",
+          "price": 113
+        },
+        "dog": {
+          "book": "Bone",
+          "price": 104
+        }
+      },
+      "open": {
+        "away": -106,
+        "home": -106,
+        "fav": -106,
+        "dog": -106
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -107,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": -107,
+          "dogRank": 5,
+          "dogJoint": false
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -110,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -106,
+          "favRank": 4,
+          "favJoint": false,
+          "dogPrice": -105,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -110,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -107,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": -113,
+          "dogRank": 12,
+          "dogJoint": false
+        },
+        "AMAPOLA": {
+          "name": "Amapola",
+          "favPrice": -110,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "SHARPAG": {
+          "name": "Sharp AG",
+          "favPrice": 106,
+          "favRank": 2,
+          "favJoint": false,
+          "dogPrice": -124,
+          "dogRank": 13,
+          "dogJoint": true
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -110,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -105,
+          "favRank": 3,
+          "favJoint": false,
+          "dogPrice": -105,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "APEX": {
+          "name": "Bone",
+          "favPrice": -124,
+          "favRank": 14,
+          "favJoint": false,
+          "dogPrice": 104,
+          "dogRank": 1,
+          "dogJoint": false
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -117,
+          "favRank": 13,
+          "favJoint": false,
+          "dogPrice": -103,
+          "dogRank": 2,
+          "dogJoint": false
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -110,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": 113,
+          "favRank": 1,
+          "favJoint": false,
+          "dogPrice": -124,
+          "dogRank": 13,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -110,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 6,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/19 - 8:15 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
     {
       "id": "6ad4e2728b390425d8762c73",
       "at": 1792451964967,
@@ -805,7 +972,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "10/19 - 7:30 PM EDT",
+      "status": "19:15 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -981,7 +1148,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "13:55 - 1st",
+      "status": "4:09 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -1157,7 +1324,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "12:52 - 1st",
+      "status": "0:25 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -1834,7 +2001,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "10/19 - 7:30 PM EDT",
+      "status": "19:15 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -2010,7 +2177,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "13:55 - 1st",
+      "status": "4:09 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -2186,7 +2353,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "12:52 - 1st",
+      "status": "0:25 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -2529,7 +2696,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "10/19 - 7:30 PM EDT",
+      "status": "19:15 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -2705,7 +2872,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "13:55 - 1st",
+      "status": "4:09 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -2881,7 +3048,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "12:52 - 1st",
+      "status": "0:25 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -3346,7 +3513,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "10/19 - 7:30 PM EDT",
+      "status": "19:15 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -3495,7 +3662,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "13:55 - 1st",
+      "status": "4:09 - 1st",
       "awayScore": null,
       "homeScore": null
     },
@@ -3644,7 +3811,7 @@ window.__BOOK_LEAGUE_DATA__ = {
       },
       "winnerTeamIdx": null,
       "gradedAt": null,
-      "status": "12:52 - 1st",
+      "status": "0:25 - 1st",
       "awayScore": null,
       "homeScore": null
     },
