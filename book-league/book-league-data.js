@@ -1,5 +1,5 @@
 window.__BOOK_LEAGUE_DATA__ = {
-  "updatedAt": "2026-10-19T23:44:22.478Z",
+  "updatedAt": "2026-10-20T11:12:50.203Z",
   "snaps": [
     {
       "id": "6acc696cb29da91e8f81762f",
@@ -162,11 +162,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/19 - 8:15 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494763990,
+      "status": "Final",
+      "awayScore": 17,
+      "homeScore": 23
     },
     {
       "id": "6ad4e2728b390425d8762c73",
@@ -311,11 +311,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": false
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/19 - 8:00 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764368,
+      "status": "Final",
+      "awayScore": 3,
+      "homeScore": 7
     },
     {
       "id": "6acc696cb29da91e8f81762f",
@@ -478,11 +478,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/19 - 8:15 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764369,
+      "status": "Final",
+      "awayScore": 17,
+      "homeScore": 23
     },
     {
       "id": "6ad4e2728b390425d8762c73",
@@ -627,11 +627,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": false
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/19 - 8:00 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764369,
+      "status": "Final",
+      "awayScore": 3,
+      "homeScore": 7
     },
     {
       "id": "6ad4e9748b390425d8764224",
@@ -803,11 +803,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/19 - 9:00 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764882,
+      "status": "Final",
+      "awayScore": 4,
+      "homeScore": 5
     },
     {
       "id": "6ad4e9748b390425d8764222",
@@ -970,11 +970,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "19:15 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764882,
+      "status": "Final",
+      "awayScore": 1,
+      "homeScore": 3
     },
     {
       "id": "6ad4e9748b390425d8764220",
@@ -1146,11 +1146,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "4:09 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764882,
+      "status": "Final",
+      "awayScore": 2,
+      "homeScore": 3
     },
     {
       "id": "6ad4e9748b390425d876421e",
@@ -1322,11 +1322,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "0:25 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764882,
+      "status": "Final",
+      "awayScore": 2,
+      "homeScore": 5
     },
     {
       "id": "6acc696cb29da91e8f81762f",
@@ -1489,11 +1489,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": false
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/19 - 8:15 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764883,
+      "status": "Final",
+      "awayScore": 17,
+      "homeScore": 23
     },
     {
       "id": "6acc696cb29da91e8f81762f",
@@ -1656,11 +1656,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": false
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/19 - 8:15 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764883,
+      "status": "Final",
+      "awayScore": 17,
+      "homeScore": 23
     },
     {
       "id": "6ad4e9748b390425d8764224",
@@ -1832,11 +1832,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/19 - 9:00 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764883,
+      "status": "Final",
+      "awayScore": 4,
+      "homeScore": 5
     },
     {
       "id": "6ad4e9748b390425d8764222",
@@ -1999,11 +1999,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": false
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "19:15 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764884,
+      "status": "Final",
+      "awayScore": 1,
+      "homeScore": 3
     },
     {
       "id": "6ad4e9748b390425d8764220",
@@ -2175,11 +2175,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "4:09 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764884,
+      "status": "Final",
+      "awayScore": 2,
+      "homeScore": 3
     },
     {
       "id": "6ad4e9748b390425d876421e",
@@ -2351,11 +2351,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "0:25 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764884,
+      "status": "Final",
+      "awayScore": 2,
+      "homeScore": 5
     },
     {
       "id": "6ad4e9748b390425d8764224",
@@ -2527,11 +2527,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/19 - 9:00 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764884,
+      "status": "Final",
+      "awayScore": 4,
+      "homeScore": 5
     },
     {
       "id": "6ad4e9748b390425d8764222",
@@ -2694,11 +2694,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": false
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "19:15 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764885,
+      "status": "Final",
+      "awayScore": 1,
+      "homeScore": 3
     },
     {
       "id": "6ad4e9748b390425d8764220",
@@ -2870,11 +2870,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": false
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "4:09 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764885,
+      "status": "Final",
+      "awayScore": 2,
+      "homeScore": 3
     },
     {
       "id": "6ad4e9748b390425d876421e",
@@ -3046,11 +3046,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "0:25 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764885,
+      "status": "Final",
+      "awayScore": 2,
+      "homeScore": 5
     },
     {
       "id": "6acc696cb29da91e8f81762f",
@@ -3213,11 +3213,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/19 - 8:15 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764885,
+      "status": "Final",
+      "awayScore": 17,
+      "homeScore": 23
     },
     {
       "id": "6ad4e9748b390425d8764224",
@@ -3362,11 +3362,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "10/19 - 9:00 PM EDT",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764885,
+      "status": "Final",
+      "awayScore": 4,
+      "homeScore": 5
     },
     {
       "id": "6ad4e9748b390425d8764222",
@@ -3511,11 +3511,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": false
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "19:15 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764886,
+      "status": "Final",
+      "awayScore": 1,
+      "homeScore": 3
     },
     {
       "id": "6ad4e9748b390425d8764220",
@@ -3660,11 +3660,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": false
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "4:09 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764886,
+      "status": "Final",
+      "awayScore": 2,
+      "homeScore": 3
     },
     {
       "id": "6ad4e9748b390425d876421e",
@@ -3809,11 +3809,11 @@ window.__BOOK_LEAGUE_DATA__ = {
           "dogJoint": true
         }
       },
-      "winnerTeamIdx": null,
-      "gradedAt": null,
-      "status": "0:25 - 1st",
-      "awayScore": null,
-      "homeScore": null
+      "winnerTeamIdx": 1,
+      "gradedAt": 1792494764886,
+      "status": "Final",
+      "awayScore": 2,
+      "homeScore": 5
     },
     {
       "id": "6acc2576b29da91e8f80e8ce",
