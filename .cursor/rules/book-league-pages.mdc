@@ -1,0 +1,12 @@
+---
+description: Book League changes must ship to GitHub Pages
+globs: book-league*
+alwaysApply: true
+---
+
+# Book League → GitHub Pages
+
+Whenever Book League UI or logic is changed in this chat (`book-league.html`, `book-league.js`, or related Book League assets), **commit and push those changes to `origin/main`** so https://jacobtulster.github.io/pinny-fade/book-league.html updates. Do not leave Book League fixes local-only unless the user explicitly says so.
+
+- Prefer a focused commit that includes only Book League files (not unrelated WIP).
+- Push after commit; Pages is served from this repo.

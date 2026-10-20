@@ -196,13 +196,21 @@
     return ordered.concat(rest);
   }
 
+  function isAllSportFilter() {
+    return !sportFilter || sportFilter === 'ALL';
+  }
+
+  function matchesSportFilter(s) {
+    return isAllSportFilter() || snapSport(s) === sportFilter;
+  }
+
   function ensureSportFilter() {
     const sports = sportsInData();
     if (!sports.length) {
-      sportFilter = '';
+      sportFilter = 'ALL';
       return sports;
     }
-    if (!sportFilter || !sports.includes(sportFilter)) {
+    if (sportFilter !== 'ALL' && (!sportFilter || !sports.includes(sportFilter))) {
       // Prefer sport with the most graded snaps
       let best = sports[0];
       let bestN = -1;
@@ -222,7 +230,7 @@
   }
 
   function setSportFilter(key) {
-    sportFilter = String(key || '');
+    sportFilter = String(key || 'ALL');
     try {
       sessionStorage.setItem(SPORT_FILTER_KEY, sportFilter);
     } catch (_) {}
@@ -236,11 +244,17 @@
       sportFilters.innerHTML = '';
       return;
     }
-    sportFilters.innerHTML = sports
+    const tabs = ['ALL'].concat(sports);
+    sportFilters.innerHTML = tabs
       .map((k) => {
-        const n = snaps.filter((s) => snapSport(s) === k).length;
-        const graded = snaps.filter((s) => snapSport(s) === k && isGraded(s)).length;
-        const active = k === sportFilter;
+        const all = k === 'ALL';
+        const n = all
+          ? snaps.length
+          : snaps.filter((s) => snapSport(s) === k).length;
+        const graded = all
+          ? snaps.filter(isGraded).length
+          : snaps.filter((s) => snapSport(s) === k && isGraded(s)).length;
+        const active = all ? isAllSportFilter() : k === sportFilter;
         return (
           '<button type="button" class="bl-chip' +
           (active ? ' is-active' : '') +
@@ -263,7 +277,7 @@
   function aggregateStandings() {
     const map = new Map();
     snaps.forEach((s) => {
-      if (sportFilter && snapSport(s) !== sportFilter) return;
+      if (!matchesSportFilter(s)) return;
       const won = favWonSnap(s);
       if (won == null) return;
       bookRows(s).forEach((b) => {
@@ -296,9 +310,9 @@
     if (!rows.length) {
       standingsBody.innerHTML =
         '<tr class="empty"><td colspan="7">' +
-        (sportFilter
-          ? 'No graded ' + escapeHtml(sportFilter) + ' snaps yet…'
-          : 'Waiting for graded snaps…') +
+        (isAllSportFilter()
+          ? 'Waiting for graded snaps…'
+          : 'No graded ' + escapeHtml(sportFilter) + ' snaps yet…') +
         '</td></tr>';
       return;
     }
@@ -344,7 +358,7 @@
       .toLowerCase();
     const onlyUngraded = !!(filterUngraded && filterUngraded.checked);
     return snaps.filter((s) => {
-      if (sportFilter && snapSport(s) !== sportFilter) return false;
+      if (!matchesSportFilter(s)) return false;
       if (onlyUngraded && isGraded(s)) return false;
       if (!q) return true;
       const bookBlob = bookRows(s)
@@ -541,6 +555,8 @@
 
   function sourceLabel() {
     if (dataSource === 'local') return 'local Tampermonkey';
+    if (dataSource === 'github') return 'GitHub (global)';
+    if (dataSource === 'merged') return 'merged local + file';
     if (dataSource === 'file') return 'book-league-data.js';
     return dataSource || 'file';
   }
@@ -562,14 +578,14 @@
         'Open 4codds with the userscript (local store + optional GitHub token)'
       );
     } else {
-      const sportBit = sportFilter
-        ? ' · ' +
+      const sportBit = isAllSportFilter()
+        ? ' · ALL ' + graded + '/' + snaps.length
+        : ' · ' +
           sportFilter +
           ' ' +
           snaps.filter((s) => snapSport(s) === sportFilter && isGraded(s)).length +
           '/' +
-          snaps.filter((s) => snapSport(s) === sportFilter).length
-        : '';
+          snaps.filter((s) => snapSport(s) === sportFilter).length;
       setStatus(
         'ok',
         snaps.length +
