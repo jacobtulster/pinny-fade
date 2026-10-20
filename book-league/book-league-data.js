@@ -1,6 +1,1523 @@
 window.__BOOK_LEAGUE_DATA__ = {
-  "updatedAt": "2026-10-20T11:12:50.203Z",
+  "updatedAt": "2026-10-20T11:16:22.125Z",
   "snaps": [
+    {
+      "id": "6ad63c288b390425d87888cc",
+      "at": 1792494974783,
+      "startAt": 1792550220000,
+      "hourBucket": 497915,
+      "sport": "hockey",
+      "league": "NHL",
+      "market": "Moneyline",
+      "teams": [
+        "Tampa Bay Lightning",
+        "Vegas Golden Knights"
+      ],
+      "favSide": 1,
+      "dogSide": 0,
+      "favTeam": "Vegas Golden Knights",
+      "dogTeam": "Tampa Bay Lightning",
+      "y": 12,
+      "best": {
+        "fav": {
+          "book": "Circa",
+          "price": -106
+        },
+        "dog": {
+          "book": "Pinnacle",
+          "price": -102
+        }
+      },
+      "open": {
+        "away": 101,
+        "home": -113,
+        "fav": -113,
+        "dog": 101
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -111,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": -102,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -106,
+          "favRank": 1,
+          "favJoint": true,
+          "dogPrice": -106,
+          "dogRank": 9,
+          "dogJoint": false
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -111,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": -102,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -115,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": -105,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -115,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": -105,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -110,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 11,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -106,
+          "favRank": 1,
+          "favJoint": true,
+          "dogPrice": -108,
+          "dogRank": 10,
+          "dogJoint": false
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -115,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": -105,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -110,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 11,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -112,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": -103,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "PREDICTFUN": {
+          "name": "Predict.fun",
+          "favPrice": -112,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": -103,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -115,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": -105,
+          "dogRank": 5,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/20 - 10:30 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
+    {
+      "id": "6ad63c288b390425d87888c8",
+      "at": 1792494974782,
+      "startAt": 1792547220000,
+      "hourBucket": 497915,
+      "sport": "hockey",
+      "league": "NHL",
+      "market": "Moneyline",
+      "teams": [
+        "Detroit Red Wings",
+        "Seattle Kraken"
+      ],
+      "favSide": 1,
+      "dogSide": 0,
+      "favTeam": "Seattle Kraken",
+      "dogTeam": "Detroit Red Wings",
+      "y": 12,
+      "best": {
+        "fav": {
+          "book": "Circa",
+          "price": -106
+        },
+        "dog": {
+          "book": "Predict.fun",
+          "price": -103
+        }
+      },
+      "open": {
+        "away": -101,
+        "home": -111,
+        "fav": -111,
+        "dog": -101
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -109,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": -105,
+          "dogRank": 4,
+          "dogJoint": true
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -106,
+          "favRank": 1,
+          "favJoint": false,
+          "dogPrice": -106,
+          "dogRank": 8,
+          "dogJoint": false
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -108,
+          "favRank": 2,
+          "favJoint": false,
+          "dogPrice": -104,
+          "dogRank": 2,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -112,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -108,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -115,
+          "favRank": 11,
+          "favJoint": true,
+          "dogPrice": -105,
+          "dogRank": 4,
+          "dogJoint": true
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -110,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 11,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -110,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": -104,
+          "dogRank": 2,
+          "dogJoint": true
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -115,
+          "favRank": 11,
+          "favJoint": true,
+          "dogPrice": -105,
+          "dogRank": 4,
+          "dogJoint": true
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -110,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 11,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -109,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": -105,
+          "dogRank": 4,
+          "dogJoint": true
+        },
+        "PREDICTFUN": {
+          "name": "Predict.fun",
+          "favPrice": -112,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -103,
+          "dogRank": 1,
+          "dogJoint": false
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -112,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -108,
+          "dogRank": 9,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/20 - 9:40 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
+    {
+      "id": "6ad63c288b390425d87888ca",
+      "at": 1792494974782,
+      "startAt": 1792548420000,
+      "hourBucket": 497915,
+      "sport": "hockey",
+      "league": "NHL",
+      "market": "Moneyline",
+      "teams": [
+        "Carolina Hurricanes",
+        "Vancouver Canucks"
+      ],
+      "favSide": 0,
+      "dogSide": 1,
+      "favTeam": "Carolina Hurricanes",
+      "dogTeam": "Vancouver Canucks",
+      "y": 12,
+      "best": {
+        "fav": {
+          "book": "LowVig",
+          "price": -275
+        },
+        "dog": {
+          "book": "Predict.fun",
+          "price": 264
+        }
+      },
+      "open": {
+        "away": -272,
+        "home": 231,
+        "fav": -272,
+        "dog": 231
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -304,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": 259,
+          "dogRank": 3,
+          "dogJoint": false
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -285,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": 250,
+          "dogRank": 6,
+          "dogJoint": false
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -304,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": 256,
+          "dogRank": 4,
+          "dogJoint": false
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -290,
+          "favRank": 6,
+          "favJoint": true,
+          "dogPrice": 237,
+          "dogRank": 8,
+          "dogJoint": false
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -285,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": 238,
+          "dogRank": 7,
+          "dogJoint": false
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -285,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": 230,
+          "dogRank": 12,
+          "dogJoint": false
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -275,
+          "favRank": 1,
+          "favJoint": false,
+          "dogPrice": 236,
+          "dogRank": 9,
+          "dogJoint": false
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -278,
+          "favRank": 2,
+          "favJoint": false,
+          "dogPrice": 232,
+          "dogRank": 11,
+          "dogJoint": false
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -290,
+          "favRank": 6,
+          "favJoint": true,
+          "dogPrice": 235,
+          "dogRank": 10,
+          "dogJoint": false
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -305,
+          "favRank": 11,
+          "favJoint": false,
+          "dogPrice": 253,
+          "dogRank": 5,
+          "dogJoint": false
+        },
+        "PREDICTFUN": {
+          "name": "Predict.fun",
+          "favPrice": -291,
+          "favRank": 8,
+          "favJoint": false,
+          "dogPrice": 264,
+          "dogRank": 1,
+          "dogJoint": false
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -320,
+          "favRank": 12,
+          "favJoint": false,
+          "dogPrice": 260,
+          "dogRank": 2,
+          "dogJoint": false
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/20 - 10:00 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
+    {
+      "id": "6ad63c288b390425d87888c4",
+      "at": 1792494974781,
+      "startAt": 1792541220000,
+      "hourBucket": 497915,
+      "sport": "hockey",
+      "league": "NHL",
+      "market": "Moneyline",
+      "teams": [
+        "Boston Bruins",
+        "Dallas Stars"
+      ],
+      "favSide": 1,
+      "dogSide": 0,
+      "favTeam": "Dallas Stars",
+      "dogTeam": "Boston Bruins",
+      "y": 12,
+      "best": {
+        "fav": {
+          "book": "Predict.fun",
+          "price": -161
+        },
+        "dog": {
+          "book": "Buckeye PPH",
+          "price": 150
+        }
+      },
+      "open": {
+        "away": 148,
+        "home": -168,
+        "fav": -168,
+        "dog": 148
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -167,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": 147,
+          "dogRank": 2,
+          "dogJoint": true
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -164,
+          "favRank": 2,
+          "favJoint": true,
+          "dogPrice": 147,
+          "dogRank": 2,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -167,
+          "favRank": 7,
+          "favJoint": true,
+          "dogPrice": 147,
+          "dogRank": 2,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -165,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 144,
+          "dogRank": 10,
+          "dogJoint": false
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -164,
+          "favRank": 2,
+          "favJoint": true,
+          "dogPrice": 141,
+          "dogRank": 11,
+          "dogJoint": true
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -170,
+          "favRank": 10,
+          "favJoint": true,
+          "dogPrice": 150,
+          "dogRank": 1,
+          "dogJoint": false
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -165,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 145,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -164,
+          "favRank": 2,
+          "favJoint": true,
+          "dogPrice": 141,
+          "dogRank": 11,
+          "dogJoint": true
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -170,
+          "favRank": 10,
+          "favJoint": true,
+          "dogPrice": 145,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -168,
+          "favRank": 9,
+          "favJoint": false,
+          "dogPrice": 146,
+          "dogRank": 6,
+          "dogJoint": false
+        },
+        "PREDICTFUN": {
+          "name": "Predict.fun",
+          "favPrice": -161,
+          "favRank": 1,
+          "favJoint": false,
+          "dogPrice": 147,
+          "dogRank": 2,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -170,
+          "favRank": 10,
+          "favJoint": true,
+          "dogPrice": 145,
+          "dogRank": 7,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/20 - 8:00 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
+    {
+      "id": "6ad63c288b390425d87888c6",
+      "at": 1792494974781,
+      "startAt": 1792544820000,
+      "hourBucket": 497915,
+      "sport": "hockey",
+      "league": "NHL",
+      "market": "Moneyline",
+      "teams": [
+        "Minnesota Wild",
+        "Edmonton Oilers"
+      ],
+      "favSide": 1,
+      "dogSide": 0,
+      "favTeam": "Edmonton Oilers",
+      "dogTeam": "Minnesota Wild",
+      "y": 12,
+      "best": {
+        "fav": {
+          "book": "Circa",
+          "price": -128
+        },
+        "dog": {
+          "book": "Pinnacle",
+          "price": 120
+        }
+      },
+      "open": {
+        "away": 114,
+        "home": -128,
+        "fav": -128,
+        "dog": 114
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -136,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": 120,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -128,
+          "favRank": 1,
+          "favJoint": true,
+          "dogPrice": 115,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -136,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": 120,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -135,
+          "favRank": 8,
+          "favJoint": false,
+          "dogPrice": 115,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -131,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 111,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -130,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": 110,
+          "dogRank": 11,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -128,
+          "favRank": 1,
+          "favJoint": true,
+          "dogPrice": 113,
+          "dogRank": 8,
+          "dogJoint": false
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -131,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 111,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -130,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": 110,
+          "dogRank": 11,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -137,
+          "favRank": 11,
+          "favJoint": false,
+          "dogPrice": 119,
+          "dogRank": 4,
+          "dogJoint": true
+        },
+        "PREDICTFUN": {
+          "name": "Predict.fun",
+          "favPrice": -131,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 119,
+          "dogRank": 4,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -140,
+          "favRank": 12,
+          "favJoint": false,
+          "dogPrice": 120,
+          "dogRank": 1,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/20 - 9:00 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
+    {
+      "id": "6ad63c288b390425d87888be",
+      "at": 1792494974780,
+      "startAt": 1792537620000,
+      "hourBucket": 497915,
+      "sport": "hockey",
+      "league": "NHL",
+      "market": "Moneyline",
+      "teams": [
+        "Los Angeles Kings",
+        "Washington Capitals"
+      ],
+      "favSide": 1,
+      "dogSide": 0,
+      "favTeam": "Washington Capitals",
+      "dogTeam": "Los Angeles Kings",
+      "y": 12,
+      "best": {
+        "fav": {
+          "book": "Predict.fun",
+          "price": -147
+        },
+        "dog": {
+          "book": "Circa",
+          "price": 140
+        }
+      },
+      "open": {
+        "away": 142,
+        "home": -161,
+        "fav": -161,
+        "dog": 142
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -150,
+          "favRank": 2,
+          "favJoint": true,
+          "dogPrice": 132,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -156,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": 140,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -150,
+          "favRank": 2,
+          "favJoint": true,
+          "dogPrice": 132,
+          "dogRank": 9,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -151,
+          "favRank": 4,
+          "favJoint": true,
+          "dogPrice": 131,
+          "dogRank": 11,
+          "dogJoint": true
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -156,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": 134,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -160,
+          "favRank": 11,
+          "favJoint": true,
+          "dogPrice": 140,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -153,
+          "favRank": 6,
+          "favJoint": false,
+          "dogPrice": 135,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -156,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": 134,
+          "dogRank": 6,
+          "dogJoint": true
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -160,
+          "favRank": 11,
+          "favJoint": true,
+          "dogPrice": 135,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -151,
+          "favRank": 4,
+          "favJoint": true,
+          "dogPrice": 131,
+          "dogRank": 11,
+          "dogJoint": true
+        },
+        "PREDICTFUN": {
+          "name": "Predict.fun",
+          "favPrice": -147,
+          "favRank": 1,
+          "favJoint": false,
+          "dogPrice": 135,
+          "dogRank": 3,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -155,
+          "favRank": 7,
+          "favJoint": false,
+          "dogPrice": 133,
+          "dogRank": 8,
+          "dogJoint": false
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/20 - 7:00 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
+    {
+      "id": "6ad63c288b390425d87888c2",
+      "at": 1792494974780,
+      "startAt": 1792541220000,
+      "hourBucket": 497915,
+      "sport": "hockey",
+      "league": "NHL",
+      "market": "Moneyline",
+      "teams": [
+        "Winnipeg Jets",
+        "St. Louis Blues"
+      ],
+      "favSide": 1,
+      "dogSide": 0,
+      "favTeam": "St. Louis Blues",
+      "dogTeam": "Winnipeg Jets",
+      "y": 12,
+      "best": {
+        "fav": {
+          "book": "Circa",
+          "price": -138
+        },
+        "dog": {
+          "book": "Pinnacle",
+          "price": 125
+        }
+      },
+      "open": {
+        "away": 124,
+        "home": -140,
+        "fav": -140,
+        "dog": 124
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -142,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 124,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -138,
+          "favRank": 1,
+          "favJoint": false,
+          "dogPrice": 124,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -141,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": 125,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -140,
+          "favRank": 2,
+          "favJoint": false,
+          "dogPrice": 120,
+          "dogRank": 12,
+          "dogJoint": false
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -142,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 121,
+          "dogRank": 10,
+          "dogJoint": true
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -145,
+          "favRank": 10,
+          "favJoint": true,
+          "dogPrice": 125,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -141,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": 124,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -142,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 121,
+          "dogRank": 10,
+          "dogJoint": true
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -145,
+          "favRank": 10,
+          "favJoint": true,
+          "dogPrice": 125,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -142,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 124,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "PREDICTFUN": {
+          "name": "Predict.fun",
+          "favPrice": -142,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": 124,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -145,
+          "favRank": 10,
+          "favJoint": true,
+          "dogPrice": 125,
+          "dogRank": 1,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/20 - 8:00 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
+    {
+      "id": "6ad515fb8b390425d876e525",
+      "at": 1792494792148,
+      "startAt": 1792539000000,
+      "hourBucket": 497915,
+      "sport": "football",
+      "league": "NCAAF",
+      "market": "Spread",
+      "teams": [
+        "South Alabama",
+        "Marshall"
+      ],
+      "favSide": 0,
+      "dogSide": 1,
+      "favTeam": "South Alabama",
+      "dogTeam": "Marshall",
+      "y": 13,
+      "best": {
+        "fav": {
+          "book": "LowVig",
+          "price": -101
+        },
+        "dog": {
+          "book": "Bookmaker",
+          "price": -103
+        }
+      },
+      "open": {
+        "away": -108,
+        "home": -108,
+        "fav": -108,
+        "dog": -108
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -105,
+          "favRank": 2,
+          "favJoint": true,
+          "dogPrice": -111,
+          "dogRank": 8,
+          "dogJoint": true
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -115,
+          "favRank": 11,
+          "favJoint": false,
+          "dogPrice": -105,
+          "dogRank": 3,
+          "dogJoint": false
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -105,
+          "favRank": 2,
+          "favJoint": true,
+          "dogPrice": -111,
+          "dogRank": 8,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -117,
+          "favRank": 12,
+          "favJoint": true,
+          "dogPrice": -103,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -105,
+          "favRank": 2,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 12,
+          "dogJoint": true
+        },
+        "AMAPOLA": {
+          "name": "Amapola",
+          "favPrice": -110,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 4,
+          "dogJoint": true
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -110,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 4,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -101,
+          "favRank": 1,
+          "favJoint": false,
+          "dogPrice": -111,
+          "dogRank": 8,
+          "dogJoint": true
+        },
+        "APEX": {
+          "name": "Bone",
+          "favPrice": -117,
+          "favRank": 12,
+          "favJoint": true,
+          "dogPrice": -103,
+          "dogRank": 1,
+          "dogJoint": true
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -108,
+          "favRank": 7,
+          "favJoint": false,
+          "dogPrice": -110,
+          "dogRank": 4,
+          "dogJoint": true
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -110,
+          "favRank": 8,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 4,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -105,
+          "favRank": 2,
+          "favJoint": true,
+          "dogPrice": -111,
+          "dogRank": 8,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -105,
+          "favRank": 2,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 12,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/20 - 7:30 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
+    {
+      "id": "6ad515fb8b390425d876e521",
+      "at": 1792494792147,
+      "startAt": 1792537200000,
+      "hourBucket": 497915,
+      "sport": "football",
+      "league": "NCAAF",
+      "market": "Spread",
+      "teams": [
+        "Middle Tennessee State",
+        "Florida International"
+      ],
+      "favSide": 1,
+      "dogSide": 0,
+      "favTeam": "Florida International",
+      "dogTeam": "Middle Tennessee State",
+      "y": 13,
+      "best": {
+        "fav": {
+          "book": "Bone",
+          "price": -110
+        },
+        "dog": {
+          "book": "LowVig",
+          "price": -101
+        }
+      },
+      "open": {
+        "away": -107,
+        "home": -109,
+        "fav": -109,
+        "dog": -107
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -112,
+          "favRank": 11,
+          "favJoint": false,
+          "dogPrice": -104,
+          "dogRank": 2,
+          "dogJoint": false
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -110,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -103,
+          "favRank": 3,
+          "favJoint": false,
+          "dogPrice": -114,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -111,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": -109,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -113,
+          "favRank": 12,
+          "favJoint": false,
+          "dogPrice": -107,
+          "dogRank": 4,
+          "dogJoint": false
+        },
+        "AMAPOLA": {
+          "name": "Amapola",
+          "favPrice": -102,
+          "favRank": 1,
+          "favJoint": true,
+          "dogPrice": -118,
+          "dogRank": 13,
+          "dogJoint": false
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -110,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -111,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": -101,
+          "dogRank": 1,
+          "dogJoint": false
+        },
+        "APEX": {
+          "name": "Bone",
+          "favPrice": -110,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -104,
+          "favRank": 4,
+          "favJoint": false,
+          "dogPrice": -115,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -110,
+          "favRank": 5,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -102,
+          "favRank": 1,
+          "favJoint": true,
+          "dogPrice": -115,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -115,
+          "favRank": 13,
+          "favJoint": false,
+          "dogPrice": -105,
+          "dogRank": 3,
+          "dogJoint": false
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/20 - 7:00 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
+    {
+      "id": "6ad515fb8b390425d876e523",
+      "at": 1792494792147,
+      "startAt": 1792537200000,
+      "hourBucket": 497915,
+      "sport": "football",
+      "league": "NCAAF",
+      "market": "Spread",
+      "teams": [
+        "Missouri St",
+        "Delaware"
+      ],
+      "favSide": 1,
+      "dogSide": 0,
+      "favTeam": "Delaware",
+      "dogTeam": "Missouri St",
+      "y": 13,
+      "best": {
+        "fav": {
+          "book": "Bookmaker",
+          "price": -105
+        },
+        "dog": {
+          "book": "LowVig",
+          "price": -101
+        }
+      },
+      "open": {
+        "away": -112,
+        "home": -104,
+        "fav": -104,
+        "dog": -112
+      },
+      "books": {
+        "VERTEX": {
+          "name": "Vertex",
+          "favPrice": -112,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": -104,
+          "dogRank": 2,
+          "dogJoint": true
+        },
+        "SHARPBOOKC": {
+          "name": "Circa",
+          "favPrice": -110,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "PINNACLE": {
+          "name": "Pinnacle",
+          "favPrice": -112,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": -104,
+          "dogRank": 2,
+          "dogJoint": true
+        },
+        "SHARPBOOKB": {
+          "name": "Bookmaker",
+          "favPrice": -105,
+          "favRank": 1,
+          "favJoint": false,
+          "dogPrice": -115,
+          "dogRank": 13,
+          "dogJoint": false
+        },
+        "PARADISE": {
+          "name": "Paradise",
+          "favPrice": -110,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "AMAPOLA": {
+          "name": "Amapola",
+          "favPrice": -108,
+          "favRank": 2,
+          "favJoint": false,
+          "dogPrice": -112,
+          "dogRank": 12,
+          "dogJoint": false
+        },
+        "BUCKEYE": {
+          "name": "Buckeye PPH",
+          "favPrice": -110,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "LOWVIG": {
+          "name": "LowVig",
+          "favPrice": -111,
+          "favRank": 8,
+          "favJoint": false,
+          "dogPrice": -101,
+          "dogRank": 1,
+          "dogJoint": false
+        },
+        "APEX": {
+          "name": "Bone",
+          "favPrice": -110,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "ACESHIGH": {
+          "name": "Aces High",
+          "favPrice": -113,
+          "favRank": 12,
+          "favJoint": false,
+          "dogPrice": -105,
+          "dogRank": 5,
+          "dogJoint": true
+        },
+        "TRYLNK": {
+          "name": "Trylnk",
+          "favPrice": -110,
+          "favRank": 3,
+          "favJoint": true,
+          "dogPrice": -110,
+          "dogRank": 7,
+          "dogJoint": true
+        },
+        "BET105": {
+          "name": "Bet105",
+          "favPrice": -112,
+          "favRank": 9,
+          "favJoint": true,
+          "dogPrice": -104,
+          "dogRank": 2,
+          "dogJoint": true
+        },
+        "BOVADA": {
+          "name": "Bovada",
+          "favPrice": -115,
+          "favRank": 13,
+          "favJoint": false,
+          "dogPrice": -105,
+          "dogRank": 5,
+          "dogJoint": true
+        }
+      },
+      "winnerTeamIdx": null,
+      "gradedAt": null,
+      "status": "10/20 - 7:00 PM EDT",
+      "awayScore": null,
+      "homeScore": null
+    },
     {
       "id": "6acc696cb29da91e8f81762f",
       "at": 1792453454558,
