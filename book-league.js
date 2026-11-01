@@ -754,8 +754,8 @@
     if (/NCAAB|CBB/i.test(league) || sport === 'ncaab') return 'NCAAB';
     if (/WNBA/i.test(league) || sport === 'wnba') return 'WNBA';
     if (/NFL/i.test(league) || sport === 'football' || sport === 'nfl') return 'NFL';
-    // /^NBA$/ so "WNBA" does not match as NBA
-    if (/^NBA$/i.test(league) || sport === 'basketball' || sport === 'nba') return 'NBA';
+    // \bNBA\b so "NBA Cup" / "NBA IST" count as NBA (WNBA already returned above)
+    if (/\bNBA\b/i.test(league) || sport === 'basketball' || sport === 'nba') return 'NBA';
     return null;
   }
 
