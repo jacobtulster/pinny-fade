@@ -13,7 +13,7 @@
   };
   const LIVE_POLL_MS = 60000;
 
-  const SPORT_ORDER = ['NFL', 'NCAAF', 'NHL', 'MLB', 'NBA', 'WNBA', 'NCAAB'];
+  const SPORT_ORDER = ['NFL', 'NCAAF', 'NHL', 'MLB', 'NBA', 'WNBA', 'NCAAB', 'SOCCER'];
   const SPORT_FILTER_KEY = 'bookLeagueSportFilter';
 
   const statusBar = document.getElementById('statusBar');
@@ -744,9 +744,87 @@
     return false;
   }
 
+  function looksLikeSoccerLeague(league) {
+    const lg = String(league || '');
+    if (!lg) return false;
+    return /CHAMPIONS\s*LEAGUE|EUROPA\s*LEAGUE|CONFERENCE\s*LEAGUE|PREMIER\s*LEAGUE|LA\s*LIGA|SERIE\s*A|LIGUE\s*1|BUNDESLIGA|EREDIVISIE|PRIMEIRA|JUPILER|BRASILEIR|SERIE\s*B|MLS\b|LIGA\s*MX|PRIMERA|SUPER\s*LIG|SUPERLIGA|ALLSVENSKAN|ELITESERIEN|J\.?\s*LEAGUE|K\s*LEAGUE|A-?LEAGUE|SCOTTISH\s*PREM|SUPER\s*LEAGUE|NATIONS\s*LEAGUE|COPA\s|CHAMPIONSHIP|LEAGUE\s*ONE|LEAGUE\s*1\b|HNL\b|EKSTRAKLASA|NB\s*1|USL\b|CANADIAN\s*PREM/i.test(
+      lg
+    );
+  }
+
+  /** 4C soccer tour labels → ESPN soccer league slug (unknown still try ESPN all). */
+  function espnSoccerSlug(league) {
+    const lg = String(league || '')
+      .toLowerCase()
+      .replace(/['’]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!lg) return null;
+    const rows = [
+      [/champions league/, 'uefa.champions'],
+      [/europa conference|conference league/, 'uefa.europa.conf'],
+      [/europa league/, 'uefa.europa'],
+      [/nations league/, 'uefa.nations'],
+      [/premier league/, 'eng.1'],
+      [/\bchampionship\b/, 'eng.2'],
+      [/league one|england league 1/, 'eng.3'],
+      [/la liga 2/, 'esp.2'],
+      [/la liga/, 'esp.1'],
+      [/brasileir|brazil serie a/, 'bra.1'],
+      [/brazil serie b/, 'bra.2'],
+      [/serie a/, 'ita.1'],
+      [/serie b/, 'ita.2'],
+      [/ligue 2/, 'fra.2'],
+      [/ligue 1/, 'fra.1'],
+      [/2\.?\s*bundesliga/, 'ger.2'],
+      [/bundesliga/, 'ger.1'],
+      [/eredivisie/, 'ned.1'],
+      [/jupiler/, 'bel.1'],
+      [/primeira liga/, 'por.1'],
+      [/\bmls\b/, 'usa.1'],
+      [/liga mx/, 'mex.1'],
+      [/argentina primera/, 'arg.1'],
+      [/peru primera/, 'per.1'],
+      [/colombia primera/, 'col.1'],
+      [/ecuador serie a/, 'ecu.1'],
+      [/paraguay/, 'par.1'],
+      [/chile primera/, 'chi.1'],
+      [/bolivia/, 'bol.1'],
+      [/\bj\.?\s*league/, 'jpn.1'],
+      [/k league/, 'kor.1'],
+      [/a league/, 'aus.1'],
+      [/super lig|süper lig/, 'tur.1'],
+      [/ekstraklasa/, 'pol.1'],
+      [/eliteserien/, 'nor.1'],
+      [/allsvenskan/, 'swe.1'],
+      [/scottish prem/, 'sco.1'],
+      [/switzerland super/, 'sui.1'],
+      [/austria bundesliga/, 'aut.1'],
+      [/danish superliga/, 'den.1'],
+      [/greece super/, 'gre.1'],
+      [/hungary nb/, 'hun.1'],
+      [/croatia hnl/, 'cro.1'],
+      [/russian premier/, 'rus.1'],
+      [/saudi/, 'ksa.1'],
+      [/china super/, 'chn.1'],
+      [/usl championship/, 'usa.usl.1'],
+      [/canadian premier/, 'can.1'],
+    ];
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i][0].test(lg)) return rows[i][1];
+    }
+    return null;
+  }
+
   function sportKeyFromSnap(s) {
     const league = String((s && s.league) || '').toUpperCase();
     const sport = String((s && s.sport) || '').toLowerCase();
+    if (sport === 'soccer' || sport === 'football-soccer' || sport === 'football soccer') {
+      return 'SOCCER';
+    }
+    if (looksLikeSoccerLeague(league) && sport !== 'football' && sport !== 'nfl' && sport !== 'ncaaf') {
+      return 'SOCCER';
+    }
     if (/MLB|SERIES/i.test(league) || sport === 'baseball' || sport === 'mlb') return 'MLB';
     if (/NHL/i.test(league) || sport === 'hockey' || sport === 'nhl') return 'NHL';
     // League-specific BEFORE generic sport: /football/ncaaf stores sport="football"
@@ -762,6 +840,8 @@
   function sportKeysToTry(s) {
     const k = sportKeyFromSnap(s);
     if (k) return [k];
+    const sport = String((s && s.sport) || '').toLowerCase();
+    if (sport === 'soccer' || looksLikeSoccerLeague((s && s.league) || '')) return ['SOCCER'];
     return ['NHL', 'MLB', 'NFL', 'NBA', 'NCAAF', 'NCAAB', 'WNBA'];
   }
 
@@ -809,11 +889,21 @@
     return out;
   }
 
-  async function fetchEspnBoard(sportKey, dateCompact) {
-    const meta = SPORT_META[sportKey];
-    if (!meta || !dateCompact) return [];
-    let url = ESPN + '/' + meta.path + '/scoreboard?dates=' + dateCompact;
-    if (meta.groups) url += '&groups=' + meta.groups;
+  async function fetchEspnBoard(sportKey, dateCompact, soccerSlug) {
+    let path = null;
+    let groups = null;
+    if (sportKey === 'SOCCER') {
+      if (!soccerSlug) return [];
+      path = 'soccer/' + soccerSlug;
+    } else {
+      const meta = SPORT_META[sportKey];
+      if (!meta) return [];
+      path = meta.path;
+      groups = meta.groups || null;
+    }
+    if (!path || !dateCompact) return [];
+    let url = ESPN + '/' + path + '/scoreboard?dates=' + dateCompact;
+    if (groups) url += '&groups=' + groups;
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return [];
     const j = await res.json();
@@ -918,6 +1008,14 @@
     );
   }
 
+  function soccerLooseCanon(s) {
+    return String(normTeam(s) || '')
+      .replace(/\b(fc|cf|sc|ac|afc|ssc|cd|ca|fk|sk|bk|if|ud|ad|rcd|rc)\b/g, ' ')
+      .replace(/\b(club|clube|de|da|do|the)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   function matchEspnEvent(snap, events) {
     const teams = Array.isArray(snap.teams) ? snap.teams : [];
     if (teams.length < 2) return null;
@@ -936,6 +1034,23 @@
       )
         return e;
     }
+    // Soccer nicknames / FC suffixes often miss strict match.
+    const al = soccerLooseCanon(teams[0]);
+    const hl = soccerLooseCanon(teams[1]);
+    if (!al || !hl) return null;
+    for (let i = 0; i < events.length; i++) {
+      const e = events[i];
+      const ea =
+        soccerLooseCanon(e.awayCanon) ||
+        soccerLooseCanon(e.awayShort) ||
+        soccerLooseCanon(e.awayAbbr);
+      const eh =
+        soccerLooseCanon(e.homeCanon) ||
+        soccerLooseCanon(e.homeShort) ||
+        soccerLooseCanon(e.homeAbbr);
+      if (ea && eh && teamsMatch(al, ea) && teamsMatch(hl, eh)) return e;
+      if (ea && eh && teamsMatch(al, eh) && teamsMatch(hl, ea)) return e;
+    }
     return null;
   }
 
@@ -951,19 +1066,30 @@
       let ev = null;
       for (let si = 0; si < sportKeys.length && !ev; si++) {
         const sportKey = sportKeys[si];
-        for (let di = 0; di < days.length && !ev; di++) {
-          const day = days[di];
-          const ck = sportKey + '|' + day;
-          if (!espnCache.has(ck) || Date.now() - (espnCache.get(ck).at || 0) > LIVE_POLL_MS) {
-            try {
-              const events = await fetchEspnBoard(sportKey, day);
-              espnCache.set(ck, { at: Date.now(), events: events });
-            } catch (_) {
-              espnCache.set(ck, { at: Date.now(), events: [] });
+        const soccerSlugs = [];
+        if (sportKey === 'SOCCER') {
+          const mapped = espnSoccerSlug(s.league);
+          if (mapped) soccerSlugs.push(mapped);
+          soccerSlugs.push('all');
+        } else {
+          soccerSlugs.push(null);
+        }
+        for (let gi = 0; gi < soccerSlugs.length && !ev; gi++) {
+          const soccerSlug = soccerSlugs[gi];
+          for (let di = 0; di < days.length && !ev; di++) {
+            const day = days[di];
+            const ck = sportKey + '|' + (soccerSlug || '') + '|' + day;
+            if (!espnCache.has(ck) || Date.now() - (espnCache.get(ck).at || 0) > LIVE_POLL_MS) {
+              try {
+                const events = await fetchEspnBoard(sportKey, day, soccerSlug);
+                espnCache.set(ck, { at: Date.now(), events: events });
+              } catch (_) {
+                espnCache.set(ck, { at: Date.now(), events: [] });
+              }
             }
+            const pack = espnCache.get(ck);
+            ev = matchEspnEvent(s, (pack && pack.events) || []);
           }
-          const pack = espnCache.get(ck);
-          ev = matchEspnEvent(s, (pack && pack.events) || []);
         }
       }
       if (applyEspnToSnap(s, ev)) changed = true;
