@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         4C Odds — TDRs only
 // @namespace    https://github.com/local/pinny-fade
-// @version      3.11.0
-// @description  Board TDR ranks; My Line Take from Book League + Best-col; agree% = share of vote weight; OTC; ZCode (multi-sport / Open Zcode); glow; Take+ratio rec panel (O→C steam boost) with record /10 vs whole league; Book League ATS/ML cover grades (GitHub global store; NCAAB + NBA Cup→NBA).
+// @version      3.14.0
+// @description  TDR badges on today's 2 Best-line books; Take = every game from quadratic BL×gap vote; agree% from margin; OTC; Open Zcode; hold glow; Best vs Pinny ¢; Take picks; Book League ATS/ML cover grades.
 // @author       You
 // @match        https://4codds.com/*
 // @match        https://www.4codds.com/*
@@ -20,6 +20,11 @@
 // @connect      api.github.com
 // @connect      raw.githubusercontent.com
 // @connect      site.api.espn.com
+// @connect      sports.core.api.espn.com
+// @connect      www.thesportsdb.com
+// @connect      www.fotmob.com
+// @connect      fotmob.com
+// @connect      prod-cdn-public-api.livescore.com
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -29,16 +34,53 @@
   const STYLE_ID = 'pinny-tdr-style';
   const ZCODE_LIVE_KEY = '4cConsZcodeLive';
   const ZCODE_SPORT_WANT_KEY = '4cConsZcodeSportWant';
+  /** Bumped while a 4codds tab is open, even when the sport itself did not change. */
+  const ZCODE_SPORT_WANT_BEAT_KEY = '4cConsZcodeSportWantBeat';
+  /** Ignore a saved sport once 4codds has been closed longer than this. */
+  const ZCODE_SPORT_WANT_FRESH_MS = 8000;
   /** Roster for multi-tab ZCode: surplus tabs close when board sports shrink. */
   const ZCODE_TAB_ROSTER_KEY = '4cConsZcodeTabRoster';
+  /** Click Open Zcode: force an immediate scrape (bypasses scrape debounce). */
+  const ZCODE_FORCE_KEY = '4cConsZcodeForceAt';
+  /** Steady ZCode poll once this tab's sport is covered — keep ratios fresh, avoid DOM thrash. */
+  const ZCODE_POLL_MS = 15 * 1000;
+  /** Min gap between DOM scrapes unless Open Zcode / missing sport / live MO forces one. */
+  const ZCODE_SCRAPE_MIN_MS = 8 * 1000;
   let zcodeWantSettleTimer = 0;
+  let zcodeLastScrapeAt = 0;
   /** Min books with a fav price to snap. Was 12; NBA boards often only quote ~10–11. */
   const BOOK_LEAGUE_MIN_Y = 8;
+  /** Soccer books thinner than US boards — still need a real market, not a 1-book listing. */
+  const BOOK_LEAGUE_MIN_Y_SOCCER = 5;
   const BOOK_LEAGUE_UI_ID = 'pc-book-league-sync';
   const TAKE_REC_UI_ID = 'pc-take-rec';
+  const OPEN_ZCODE_UI_ID = 'pc-open-zcode';
+  /**
+   * Paint TDR 1/Y badges under every book price.
+   * false = rank in-memory for Take + Book League (no badge on every book).
+   */
+  const DISPLAY_TDR_RANKS = false;
+  /**
+   * When full TDR display is off: paint real ranks on the 2 Best-line books only (fav Best + dog Best).
+   * Limited to today's games to avoid board-wide layout thrash.
+   */
+  const DISPLAY_TDR_BL_ENDS = true;
+  /** Skip Take/TDR work on a game until this many books show a fav price (lets rows finish loading). */
+  const RANK_MIN_BOOKS_WHILE_LOADING = 4;
+
+  function tdrBadgesVisible() {
+    return DISPLAY_TDR_RANKS || DISPLAY_TDR_BL_ENDS;
+  }
+  /** Take picks panel (top-center). Board My Line Take overlay stays on. */
+  const TAKE_REC_PANEL_ENABLED = true;
+  /** Dog Takes: hold % at or below this. Fav Takes: hold % at or above this + fav ratio < 1. */
+  const TAKE_REC_DOG_HOLD_MAX = 0.5;
+  const TAKE_REC_FAV_HOLD_MIN = 1.5;
   /** Take picks: sort-boost by how far Pinny O→C is from favoring the take. */
   const TAKE_REC_AGAINST_KEY = 'pcTakeRecMovedAgainst';
   let takeRecSteamBoost = false;
+  let takeRecLastFp = '';
+  let takeRecRefreshTimer = 0;
   try {
     takeRecSteamBoost = !!GM_getValue(TAKE_REC_AGAINST_KEY, false);
   } catch (_) {}
@@ -52,6 +94,8 @@
   const BOOK_LEAGUE_GAP_MS = 3600000;
   /** Only snap games whose start is within this window (skip day+ boards like next week's NFL). */
   const BOOK_LEAGUE_MAX_START_AHEAD_MS = 18 * 3600000;
+  /** Soccer kickoffs cluster overnight / next afternoon ET; 18h dropped tomorrow's CL. */
+  const BOOK_LEAGUE_MAX_START_AHEAD_MS_SOCCER = 36 * 3600000;
   const GH_TOKEN_KEY = 'bookLeagueGithubToken';
   const GH_REPO_KEY = 'bookLeagueGithubRepo';
   const GH_BRANCH_KEY = 'bookLeagueGithubBranch';
@@ -77,12 +121,29 @@
 
   let paintTimer = 0;
   let painting = false;
+  let lastPaintAt = 0;
+  let styleReady = false;
+  let strippedLegacyMarks = false;
+  let strippedVisibleTdrs = false;
+  /** In-memory TDR badges so Take can read ranks without painting the board. */
+  const tdrInfoByPx = new WeakMap();
+  /** Mutation burst tracking — stretch paint debounce while the board is streaming prices. */
+  let moBurstHits = 0;
+  let moBurstWindowAt = 0;
+  let boardGamesCache = null;
+  let headerBundleCache = { head: null, n: 0, sig: '', codes: [], names: [] };
+  let dirtyAllGames = true;
+  const dirtyGames = new Set();
+  let lastBoardOddsFp = '';
   let lastMarketSportKey = '';
   let marketUserOverride = false;
   let marketAutoClick = false;
   let lastMarketEnsureAt = 0;
   let lastFairEnsureAt = 0;
   let lastBasketballAllEnsureAt = 0;
+  let lastBasketballBoardKey = '';
+  let basketballLeagueUserOverride = false;
+  let basketballAllAutoClick = false;
   let zcodeLiveCache = null;
   let zcodeLiveCacheAt = 0;
   let zcodeLiveFpSeen = '';
@@ -92,8 +153,10 @@
   /** Cache: { updatedAt, bySport: { NFL: { rows, bestCode, worstCode, rankIndexByCode, nameByCode } } } */
   let blStandingsCache = { updatedAt: null, bySport: {} };
   const TAKE_MIN_BL_BOOKS = 1;
-  /** Always paint a Take; confidence % is informational only. */
+  /** Always paint a Take; agree% is the calibrated margin (never gates the side). */
   const TAKE_MIN_CONFIDENCE = 0;
+  /** Book abstains only on exact TDR ties (gap 0). */
+  const TAKE_MIN_TDR_GAP = 1;
 
   function log() {
     try {
@@ -272,6 +335,16 @@
     airforce: 'air force',
     'char southern': 'charleston southern',
     chso: 'charleston southern',
+    // Purdue Fort Wayne (4C: IPFW · ZCode: IUPU - Ft. Wayne)
+    ipfw: 'iupu ft wayne',
+    pfw: 'iupu ft wayne',
+    'iupu ft wayne': 'iupu ft wayne',
+    'iupui ft wayne': 'iupu ft wayne',
+    'iupu fort wayne': 'iupu ft wayne',
+    'iupui fort wayne': 'iupu ft wayne',
+    'purdue fort wayne': 'iupu ft wayne',
+    'purdue ft wayne': 'iupu ft wayne',
+    'indiana fort wayne': 'iupu ft wayne',
     // Legacy NFL full-name renames (safe across sports — not abbrevs)
     'st louis rams': 'los angeles rams',
     'st. louis rams': 'los angeles rams',
@@ -487,20 +560,69 @@
     return board;
   }
 
-  function readZcodePublicRatio(teamRoot) {
+  /**
+   * Exact ZCode row:
+   *   <div class="public_tix_stats zcode-average-popular-number">% Ratio: <b>2.92</b></div>
+   * (Not Public Ratio in .public_tickets.tickets[ratio_level_*].)
+   */
+  function readZcodePctRatio(teamRoot) {
     if (!teamRoot) return null;
-    const nodes = teamRoot.querySelectorAll(
-      '.public_tickets.tickets[class*="ratio_level"], .public_tickets.tickets'
-    );
+    const nodes = teamRoot.querySelectorAll('.public_tix_stats.zcode-average-popular-number');
     for (let i = 0; i < nodes.length; i++) {
-      const text = String(nodes[i].textContent || '');
-      if (!/public\s*ratio/i.test(text)) continue;
-      if (/%\s*ratio/i.test(text)) continue;
+      const text = String(nodes[i].textContent || '').replace(/\s+/g, ' ').trim();
+      if (!/%\s*Ratio\s*:/i.test(text)) continue;
       const b = nodes[i].querySelector('b');
-      const n = parseFloat(String((b && b.textContent) || text).replace(/[^\d.]/g, ''));
+      const raw = String((b && b.textContent) || '').replace(/\s+/g, ' ').trim();
+      if (!raw || /^N\/A$/i.test(raw)) continue;
+      const n = parseFloat(raw);
       if (Number.isFinite(n) && n > 0) return n;
     }
     return null;
+  }
+
+  function readZcodePpcPct(teamRoot, kind) {
+    if (!teamRoot) return NaN;
+    const sel =
+      kind === 'ml'
+        ? '.public_tickets.ppc.ToML b'
+        : '.public_tickets.ppc.ToSpread b, .public_tickets.ppc.ToSpreadVal b';
+    const el = teamRoot.querySelector(sel);
+    if (!el) return NaN;
+    const n = parseFloat(String(el.textContent || '').replace('%', ''));
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  /** Same model ZCode uses for the % Ratio row (Massey / Backtest Helper). */
+  function computeZcodePctRatio(ml, spread, oppMl, oppSpread, isFavorite, sport) {
+    const round2 = (n) => Math.round(n * 100) / 100;
+    const sp = String(sport || '').toUpperCase();
+    if (sp === 'NHL' || sp === 'MLB') {
+      let ratio = null;
+      const hasMl = Number.isFinite(ml) && Number.isFinite(oppMl) && oppMl > 0;
+      if (hasMl) ratio = ml / oppMl;
+      else if (Number.isFinite(spread) && Number.isFinite(oppSpread) && oppSpread > 0)
+        ratio = spread / oppSpread;
+      if (ratio == null) return null;
+      if (isFavorite && hasMl && oppMl > ml) ratio *= 0.3;
+      return round2(ratio);
+    }
+    const hasAll = [ml, spread, oppMl, oppSpread].every(Number.isFinite);
+    let ratio = null;
+    if (hasAll) {
+      const combined = ml + spread;
+      const opposite = 200 - combined;
+      if (opposite <= 0) return null;
+      ratio = combined / opposite;
+    } else if (Number.isFinite(spread) && Number.isFinite(oppSpread) && oppSpread > 0) {
+      ratio = spread / oppSpread;
+    }
+    if (ratio == null) return null;
+    if (isFavorite) {
+      if (Number.isFinite(ml) && Number.isFinite(oppMl) && oppMl > ml) ratio *= 0.3;
+      if (Number.isFinite(spread) && Number.isFinite(oppSpread) && oppSpread > spread)
+        ratio *= 0.5;
+    }
+    return round2(ratio);
   }
 
   function scrapeZcodeLiveGames() {
@@ -534,8 +656,46 @@
           sport = String(currentZcodeSportFromUrl() || '').toUpperCase();
         } catch (_) {}
       }
-      const r1 = readZcodePublicRatio(el.querySelector('.team1'));
-      const r2 = readZcodePublicRatio(el.querySelector('.team2'));
+      const t1 = el.querySelector('.team1');
+      const t2 = el.querySelector('.team2');
+      let r1 = readZcodePctRatio(t1);
+      let r2 = readZcodePctRatio(t2);
+      // Fallback: rebuild % Ratio from ML%/Spread% when the labeled row isn't painted yet.
+      if (!(Number.isFinite(r1) && r1 > 0) || !(Number.isFinite(r2) && r2 > 0)) {
+        let ppc = null;
+        const ppcRaw = get('ppc');
+        if (ppcRaw) {
+          try {
+            ppc = JSON.parse(ppcRaw);
+          } catch (_) {
+            ppc = null;
+          }
+        }
+        const ml1 =
+          ppc && ppc.ml_pc1 != null ? parseFloat(ppc.ml_pc1) : readZcodePpcPct(t1, 'ml');
+        const ml2 =
+          ppc && ppc.ml_pc2 != null ? parseFloat(ppc.ml_pc2) : readZcodePpcPct(t2, 'ml');
+        const sl1 =
+          ppc && ppc.sl_pc1 != null ? parseFloat(ppc.sl_pc1) : readZcodePpcPct(t1, 'spread');
+        const sl2 =
+          ppc && ppc.sl_pc2 != null ? parseFloat(ppc.sl_pc2) : readZcodePpcPct(t2, 'spread');
+        const odd1 = parseFloat(get('ml1') || '');
+        const odd2 = parseFloat(get('ml2') || '');
+        const h1 = parseFloat(get('handicap1') || '');
+        const h2 = parseFloat(get('handicap2') || '');
+        const team1Fav =
+          Number.isFinite(odd1) && Number.isFinite(odd2)
+            ? odd1 < odd2
+            : Number.isFinite(h1) && Number.isFinite(h2)
+              ? h1 < h2
+              : true;
+        if (!(Number.isFinite(r1) && r1 > 0)) {
+          r1 = computeZcodePctRatio(ml1, sl1, ml2, sl2, team1Fav, sport);
+        }
+        if (!(Number.isFinite(r2) && r2 > 0)) {
+          r2 = computeZcodePctRatio(ml2, sl2, ml1, sl1, !team1Fav, sport);
+        }
+      }
       if (!(Number.isFinite(r1) && r1 > 0) && !(Number.isFinite(r2) && r2 > 0)) return;
 
       const n1 = canonTeam(name1, sport);
@@ -556,6 +716,72 @@
     });
 
     return games;
+  }
+
+  function zcodeHasGames(live) {
+    return !!(live && Array.isArray(live.games) && live.games.length);
+  }
+
+  function zcodeSportCovered(live, sport) {
+    const sp = String(sport || '').toUpperCase();
+    if (!sp) return zcodeHasGames(live);
+    const sports = Array.isArray(live && live.sports)
+      ? live.sports.map((s) => String(s || '').toUpperCase()).filter(Boolean)
+      : [];
+    if (sports.indexOf(sp) >= 0) return true;
+    const games = live && Array.isArray(live.games) ? live.games : [];
+    for (let i = 0; i < games.length; i++) {
+      if (String((games[i] && games[i].sport) || '').toUpperCase() === sp) return true;
+    }
+    return false;
+  }
+
+  /** Drop this tab's sport from the live bus (or wipe if nothing remains). No abandoned cache. */
+  function revokeZcodeLiveForSport(sport) {
+    const sp = String(sport || '').toUpperCase();
+    if (!sp || typeof GM_getValue !== 'function') return;
+    let prev = null;
+    try {
+      prev = GM_getValue(ZCODE_LIVE_KEY, null);
+    } catch (_) {}
+    const prevGames = prev && Array.isArray(prev.games) ? prev.games : [];
+    const write = (payload) => {
+      try {
+        if (typeof GM_setValue === 'function') GM_setValue(ZCODE_LIVE_KEY, payload);
+      } catch (_) {}
+      zcodeLiveCache = payload && Array.isArray(payload.games) && payload.games.length ? payload : null;
+      zcodeLiveCacheAt = Date.now();
+    };
+    if (!prevGames.length) {
+      write(null);
+      return;
+    }
+    const kept = prevGames.filter((g) => String((g && g.sport) || '').toUpperCase() !== sp);
+    if (!kept.length) {
+      write(null);
+      return;
+    }
+    write({
+      updatedAt: Date.now(),
+      gameCount: kept.length,
+      games: kept,
+      fp: zcodeGamesFingerprint(kept),
+      sports: Array.from(
+        new Set(
+          kept
+            .map((g) => String((g && g.sport) || '').toUpperCase())
+            .filter(Boolean)
+        )
+      ),
+    });
+  }
+
+  function requestZcodeUserRefresh() {
+    zcodeLiveFpSeen = '';
+    zcodeLastScrapeAt = 0;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(ZCODE_FORCE_KEY, Date.now());
+    } catch (_) {}
   }
 
   function zcodeGamesFingerprint(games) {
@@ -579,24 +805,49 @@
     return kept.concat(mine);
   }
 
-  /** Write GM only when ratios/teams change; heartbeat keeps freshness for stale check. */
+  /**
+   * Scrape ZCode DOM into GM. Anti-lag: debounce scrapes, write only when the
+   * ratio fingerprint changes (or Open Zcode / missing-sport forces it).
+   */
   function publishZcodeLive(force) {
     if (typeof GM_setValue !== 'function') return 0;
-    const scraped = scrapeZcodeLiveGames();
-    const sport = currentZcodeSportFromUrl() || '';
     const now = Date.now();
     let prev = null;
     try {
       prev = GM_getValue(ZCODE_LIVE_KEY, null);
     } catch (_) {}
     const prevGames = prev && Array.isArray(prev.games) ? prev.games : [];
+    const sport = currentZcodeSportFromUrl() || '';
+    const prevSports = Array.isArray(prev && prev.sports)
+      ? prev.sports.map((s) => String(s || '').toUpperCase()).filter(Boolean)
+      : [];
+    const sportMissing = !!(sport && prevSports.indexOf(sport) < 0);
+    let userForceAt = 0;
+    try {
+      userForceAt = Number(GM_getValue(ZCODE_FORCE_KEY, 0)) || 0;
+    } catch (_) {}
+    const prevAt = prev && prev.updatedAt ? Number(prev.updatedAt) : 0;
+    const userForce = userForceAt > 0 && userForceAt > prevAt;
+    const sinceScrape = now - zcodeLastScrapeAt;
+    const allowScrape =
+      !!force ||
+      userForce ||
+      sportMissing ||
+      !prevGames.length ||
+      sinceScrape >= ZCODE_SCRAPE_MIN_MS;
+    if (!allowScrape) return prevGames.length;
+    zcodeLastScrapeAt = now;
+    const scraped = scrapeZcodeLiveGames();
+    // Empty scrape on a sport still missing from GM: keep the old snapshot,
+    // but return 0 so first-run retry does not think this tab is done.
+    if (!scraped.length && sportMissing) return 0;
     const games = mergeZcodeLiveGames(scraped, sport, prevGames);
+    if (!games.length) return 0;
     const fp = zcodeGamesFingerprint(games);
     const prevFp = prev && prev.fp != null ? String(prev.fp) : '';
-    const age = prev && prev.updatedAt ? now - Number(prev.updatedAt) : Infinity;
-    const changed = force || fp !== prevFp;
-    const heartbeat = age > 45000;
-    if (!changed && !heartbeat) return games.length;
+    if (!userForce && !force && !sportMissing && fp === prevFp && prevGames.length) {
+      return games.length;
+    }
     const payload = {
       updatedAt: now,
       gameCount: games.length,
@@ -613,6 +864,8 @@
     try {
       GM_setValue(ZCODE_LIVE_KEY, payload);
     } catch (_) {}
+    zcodeLiveCache = payload;
+    zcodeLiveCacheAt = now;
     return games.length;
   }
 
@@ -629,16 +882,31 @@
   }
 
   /** Chip-only refresh (no TDR/OTC wipe) when ZCode GM payload changes. */
-  function refreshZcodeRatioChipsFromGm() {
+  function refreshZcodeRatioChipsFromGm(force) {
+    if (!force) {
+      const liveQuick = readZcodeLive(false);
+      const fpQuick =
+        liveQuick && liveQuick.fp != null
+          ? String(liveQuick.fp)
+          : zcodeGamesFingerprint(liveQuick && liveQuick.games);
+      if (
+        fpQuick === zcodeLiveFpSeen &&
+        zcodeHasGames(liveQuick) &&
+        zcodeRatioRolesSettled()
+      ) {
+        const zbtnHeld = document.getElementById(OPEN_ZCODE_UI_ID);
+        if (zbtnHeld) syncOpenZcodeBtn(zbtnHeld);
+        return false;
+      }
+    }
     zcodeLiveCache = null;
     zcodeLiveCacheAt = 0;
+    const zbtn = document.getElementById(OPEN_ZCODE_UI_ID);
+    if (zbtn) syncOpenZcodeBtn(zbtn);
+    else ensureOpenZcodeBtn();
     const live = readZcodeLive(true);
     const fp = live && live.fp != null ? String(live.fp) : zcodeGamesFingerprint(live && live.games);
-    if (fp === zcodeLiveFpSeen && live && live.games && live.games.length) {
-      if (live.updatedAt && Date.now() - live.updatedAt > 15 * 60 * 1000) {
-        clearZcodeRatioChips();
-        zcodeLiveFpSeen = '';
-      }
+    if (fp === zcodeLiveFpSeen && zcodeHasGames(live) && zcodeRatioRolesSettled()) {
       return false;
     }
     const wasPainting = painting;
@@ -646,7 +914,7 @@
     try {
       // In-place update only — do not wipe chips first
       markZcodeRatioChips();
-      refreshTakeRecPanel();
+      if (TAKE_REC_PANEL_ENABLED) scheduleTakeRecRefresh(120);
     } finally {
       painting = wasPainting;
     }
@@ -743,17 +1011,33 @@
   function clearZcodeNameTier(teamEl) {
     if (!teamEl || !teamEl.classList) return;
     ZCODE_NAME_TIER_CLASSES.forEach((c) => teamEl.classList.remove(c));
+    teamEl.removeAttribute('data-pc-zratio');
+    teamEl.removeAttribute('data-pc-zrole');
+    teamEl.removeAttribute('data-pc-ztier');
   }
 
   function clearZcodeRatioChips() {
     document.querySelectorAll('.pc-zcode-ratio').forEach((n) => n.remove());
-    document.querySelectorAll('.team.pc-zcode-host, .team.pc-zcode-name').forEach((el) => {
-      el.classList.remove('pc-zcode-host');
-      clearZcodeNameTier(el);
-    });
+    document
+      .querySelectorAll('.team.pc-zcode-host, .team.pc-zcode-name, .team[data-pc-zratio]')
+      .forEach((el) => {
+        el.classList.remove('pc-zcode-host');
+        clearZcodeNameTier(el);
+      });
   }
 
   /** Fav-only alert colors: <1 green · 2–4.99 yellow · 5+ red · 1–1.99 muted */
+  /** Take-picks ratio pill: ≤0.99 green, 2.00–4.99 yellow, ≥5 red, else blue. */
+  function takeRecRatioTier(r) {
+    if (r == null || !Number.isFinite(r)) return 'soft';
+    const shown = parseFloat(fmtRatioChip(r));
+    if (!Number.isFinite(shown)) return 'soft';
+    if (shown <= 0.99) return 'lo';
+    if (shown >= 5) return 'hi';
+    if (shown >= 2 && shown <= 4.99) return 'mid';
+    return 'soft';
+  }
+
   function ratioTierClass(r) {
     if (r == null || !Number.isFinite(r)) return 'tier-soft';
     if (r < 1) return 'tier-lo';
@@ -766,57 +1050,65 @@
     if (!nameEl || ratio == null || !Number.isFinite(ratio)) return;
     const teamEl = nameEl.closest('.team') || nameEl.parentElement;
     if (!teamEl) return;
-    teamEl.classList.add('pc-zcode-host');
-    let chip = teamEl.querySelector(':scope > .pc-zcode-ratio');
-    if (!chip) {
-      chip = document.createElement('span');
-      chip.className = 'pc-zcode-ratio';
-      // Append (absolute CSS) — never insert beside tName in flex flow
-      teamEl.appendChild(chip);
-    }
+    const leftover = teamEl.querySelector(':scope > .pc-zcode-ratio');
+    if (leftover) leftover.remove();
     const txt = fmtRatioChip(ratio);
-    // Green/yellow/red only on the fav; dog stays muted
     const tier = role === 'fav' ? ratioTierClass(ratio) : 'tier-soft';
-    const nextClass = 'pc-zcode-ratio ' + tier + (role === 'fav' ? ' role-fav' : ' role-dog');
-    if (chip.className !== nextClass) chip.className = nextClass;
-    if (chip.textContent !== txt) chip.textContent = txt;
-    const title =
-      'ZCode Public Ratio ' +
-      txt +
-      (role === 'fav' ? ' (fav)' : role === 'dog' ? ' (dog)' : '') +
-      (meta && meta.updatedAt
-        ? ' · ' + Math.max(0, Math.round((Date.now() - meta.updatedAt) / 1000)) + 's ago'
-        : '');
-    if (chip.title !== title) chip.title = title;
-
-    // Fav team name badge uses same tier colors; dog name untouched (OTC O->C badge kept)
-    clearZcodeNameTier(teamEl);
-    if (role === 'fav') {
-      const nameTier =
-        tier === 'tier-lo'
-          ? 'pc-zr-lo'
+    const zt =
+      role === 'fav'
+        ? tier === 'tier-lo'
+          ? 'lo'
           : tier === 'tier-mid'
-            ? 'pc-zr-mid'
+            ? 'mid'
             : tier === 'tier-hi'
-              ? 'pc-zr-hi'
-              : 'pc-zr-soft';
-      teamEl.classList.add('pc-zcode-name', nameTier);
+              ? 'hi'
+              : 'soft'
+        : '';
+    const zr = role === 'fav' ? 'fav' : 'dog';
+    if (teamEl.getAttribute('data-pc-zratio') !== txt) teamEl.setAttribute('data-pc-zratio', txt);
+    if (teamEl.getAttribute('data-pc-zrole') !== zr) teamEl.setAttribute('data-pc-zrole', zr);
+    if (zt) {
+      if (teamEl.getAttribute('data-pc-ztier') !== zt) teamEl.setAttribute('data-pc-ztier', zt);
+    } else if (teamEl.hasAttribute('data-pc-ztier')) teamEl.removeAttribute('data-pc-ztier');
+    const title =
+      'ZCode % Ratio ' +
+      txt +
+      (role === 'fav' ? ' (fav)' : role === 'dog' ? ' (dog)' : '');
+    if (teamEl.title !== title) teamEl.title = title;
+  }
+
+  /**
+   * True when ratio chips don't need another pass for fav/dog roles.
+   * After a tab switch, ratios often stamp before Best/books exist, so every
+   * side is dog and ztier never lands. Re-run once tradFavSideIndex can resolve.
+   */
+  function zcodeRatioRolesSettled() {
+    if (document.querySelector('.gRow.gGame .team[data-pc-zrole="fav"]')) return true;
+    let stamped = 0;
+    let resolvable = 0;
+    for (const row of document.querySelectorAll('.gRow.gGame')) {
+      if (!row.querySelector('.team[data-pc-zratio]')) continue;
+      stamped++;
+      if (tradFavSideIndex(row) != null) resolvable++;
     }
+    if (!stamped) return false;
+    // Book fav available on a stamped row but no fav chip → stale dog-only pass.
+    if (resolvable > 0) return false;
+    return true;
   }
 
   function markZcodeRatioChips() {
-    const live = readZcodeLive(true);
+    const live = readZcodeLive(false);
     if (!live || !live.games || !live.games.length) {
+      zcodeLiveFpSeen = '';
       clearZcodeRatioChips();
       return;
     }
-    // Stale > 15 min → hide (ZCode tab closed / not refreshing)
-    if (live.updatedAt && Date.now() - live.updatedAt > 15 * 60 * 1000) {
-      clearZcodeRatioChips();
-      return;
+    const fp = live.fp != null ? String(live.fp) : zcodeGamesFingerprint(live.games);
+    if (fp === zcodeLiveFpSeen && document.querySelector('.gRow.gGame .team[data-pc-zratio]')) {
+      if (zcodeRatioRolesSettled()) return;
     }
-    zcodeLiveFpSeen =
-      live.fp != null ? String(live.fp) : zcodeGamesFingerprint(live.games);
+    zcodeLiveFpSeen = fp;
 
     const keep = new Set();
     const usedZcode = new Set();
@@ -839,7 +1131,7 @@
       if (!hit) return;
       if (hit.key) usedZcode.add(hit.key);
       const nOut = tradOutcomeCount(gameEl);
-      const favSide = tradFavSideIndex(gameEl);
+      const favSide = tradFavSideIndex(gameEl, nOut);
       const favTeamIdx = outcomeToTeamIndex(favSide, nOut);
       const role0 = favTeamIdx === 0 ? 'fav' : favTeamIdx === 1 ? 'dog' : null;
       const role1 = favTeamIdx === 1 ? 'fav' : favTeamIdx === 0 ? 'dog' : null;
@@ -849,20 +1141,11 @@
         const ne = nameEls[si];
         if (!ne) continue;
         const host = ne.closest('.team') || ne.parentElement;
-        const c = host && host.querySelector(':scope > .pc-zcode-ratio');
-        if (c) keep.add(c);
+        if (host) keep.add(host);
       }
     });
-    // Drop orphans only — never wipe+recreate all chips (avoids name flicker)
-    document.querySelectorAll('.pc-zcode-ratio').forEach((n) => {
-      if (!keep.has(n)) {
-        const host = n.parentElement;
-        n.remove();
-        if (host && host.classList && !host.querySelector('.pc-zcode-ratio')) {
-          host.classList.remove('pc-zcode-host');
-          clearZcodeNameTier(host);
-        }
-      }
+    document.querySelectorAll('.gRow.gGame .team[data-pc-zratio]').forEach((el) => {
+      if (!keep.has(el)) clearZcodeNameTier(el);
     });
   }
 
@@ -900,8 +1183,9 @@
     const set = new Set();
     try {
       tradBoardGames().forEach((gameEl) => {
-        const k = takeSportKeyForGame(gameEl);
-        if (k) set.add(String(k).toUpperCase());
+        const k = String(takeSportKeyForGame(gameEl) || '').toUpperCase();
+        if (!k || k === 'SOCCER') return;
+        set.add(k);
       });
     } catch (_) {}
     if (!set.size) {
@@ -910,10 +1194,28 @@
     }
     const ordered = order.filter((k) => set.has(k));
     Array.from(set)
-      .filter((k) => !order.includes(k))
+      .filter((k) => !order.includes(k) && k !== 'SOCCER')
       .sort()
       .forEach((k) => ordered.push(k));
     return ordered;
+  }
+
+  function touchFourCSportWantBeat() {
+    if (typeof GM_setValue !== 'function') return;
+    try {
+      GM_setValue(ZCODE_SPORT_WANT_BEAT_KEY, Date.now());
+    } catch (_) {}
+  }
+
+  /** True only while a 4codds tab has published recently. A closed board must not move Zcode. */
+  function zcodeSportWantIsLive(payload) {
+    if (!payload || !payload.sport) return false;
+    let beat = 0;
+    try {
+      beat = Number(GM_getValue(ZCODE_SPORT_WANT_BEAT_KEY, 0)) || 0;
+    } catch (_) {}
+    const at = Math.max(beat, Number(payload.updatedAt) || 0);
+    return at > 0 && Date.now() - at < ZCODE_SPORT_WANT_FRESH_MS;
   }
 
   function publishFourCSportWant(force) {
@@ -924,6 +1226,7 @@
       log('ZCode sport want: no map for', location.pathname);
       return null;
     }
+    touchFourCSportWantBeat();
     const path = String(location.pathname || '');
     let prev = null;
     try {
@@ -1081,7 +1384,7 @@
 
   /** Follow 4codds board sport want — multi-tab aware (close extras, don't clone NHL). */
   function applyZcodeSportFromWant(payload) {
-    if (!payload) return false;
+    if (!payload || !zcodeSportWantIsLive(payload)) return false;
     const sports = normalizeWantSports(payload);
     if (!sports.length) return false;
     const cur = currentZcodeSportFromUrl();
@@ -1125,6 +1428,41 @@
     return sports;
   }
 
+  function syncOpenZcodeBtn(btn) {
+    if (!btn) return;
+    const live = readZcodeLive(false);
+    const liveN = live && live.games ? live.games.length : 0;
+    const on = liveN > 0;
+    const nextText = on ? 'Zcode · ' + liveN : 'Open Zcode';
+    if (btn.classList.contains('on') !== on) btn.classList.toggle('on', on);
+    if (btn.textContent !== nextText) btn.textContent = nextText;
+  }
+
+  function ensureOpenZcodeBtn() {
+    if (!IS_4C) return null;
+    let btn = document.getElementById(OPEN_ZCODE_UI_ID);
+    if (btn) {
+      syncOpenZcodeBtn(btn);
+      return btn;
+    }
+    btn = document.createElement('button');
+    btn.id = OPEN_ZCODE_UI_ID;
+    btn.type = 'button';
+    btn.textContent = 'Open Zcode';
+    btn.setAttribute('aria-label', 'Open Zcode');
+    btn.title = 'Open ZCode Line Reversals for sport(s) on this board';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      requestZcodeUserRefresh();
+      openNeededZcodeTabs();
+      syncOpenZcodeBtn(btn);
+    });
+    (document.body || document.documentElement).appendChild(btn);
+    syncOpenZcodeBtn(btn);
+    return btn;
+  }
+
   /** 4codds SPA: publish sport whenever the path changes (pushState / clicks). */
   function watchFourCSportRoute() {
     let last = location.pathname + location.search;
@@ -1164,7 +1502,7 @@
       },
       true
     );
-    setInterval(bump, 1000);
+    setInterval(bump, 2500);
     publishFourCSportWant(true);
   }
 
@@ -1176,11 +1514,169 @@
       if (applyZcodeSportFromWant(want)) return; // navigating away
     } catch (_) {}
 
+    let lastFp = '';
+    let retryTimer = 0;
+    let retryMo = null;
+    let retryMoTo = 0;
+    let pollTimer = 0;
+    let liveMo = null;
+    let liveMoTo = 0;
+    let retryStartedAt = 0;
+    const FIRST_RETRY_MS = 1500;
+    const FIRST_RETRY_CAP_MS = 90 * 1000;
+    /** Debounce for persistent ratio-DOM observer (keeps GM fresh after first fill). */
+    const LIVE_MO_DEBOUNCE_MS = 1200;
+
+    function readLive() {
+      try {
+        return typeof GM_getValue === 'function' ? GM_getValue(ZCODE_LIVE_KEY, null) : null;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function thisTabSnapshotReady() {
+      const live = readLive();
+      if (!zcodeHasGames(live)) return false;
+      return zcodeSportCovered(live, currentZcodeSportFromUrl());
+    }
+
+    function stopFirstRetry() {
+      if (retryTimer) {
+        clearInterval(retryTimer);
+        retryTimer = 0;
+      }
+      if (retryMoTo) {
+        clearTimeout(retryMoTo);
+        retryMoTo = 0;
+      }
+      if (retryMo) {
+        try {
+          retryMo.disconnect();
+        } catch (_) {}
+        retryMo = null;
+      }
+    }
+
+    function scheduleSteadyPoll() {
+      if (pollTimer) return;
+      pollTimer = setInterval(() => {
+        tick(false);
+        if (!thisTabSnapshotReady()) {
+          if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = 0;
+          }
+          startFirstRetry();
+        }
+      }, ZCODE_POLL_MS);
+    }
+
+    /** Stay attached after first fill — ZCode often mutates ratios without a full re-render. */
+    function armLiveRatioObserver() {
+      if (liveMo || !document.body) return;
+      try {
+        liveMo = new MutationObserver(() => {
+          if (liveMoTo) return;
+          liveMoTo = setTimeout(() => {
+            liveMoTo = 0;
+            tick(false);
+          }, LIVE_MO_DEBOUNCE_MS);
+        });
+        liveMo.observe(document.body, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+      } catch (_) {
+        liveMo = null;
+      }
+    }
+
+    const tick = (force) => {
+      const n = publishZcodeLive(!!force);
+      let payload = null;
+      try {
+        payload = GM_getValue(ZCODE_LIVE_KEY, null);
+      } catch (_) {}
+      const fp = payload && payload.fp != null ? String(payload.fp) : '';
+      if (fp && fp !== lastFp) {
+        lastFp = fp;
+        log('ZCode live published', n, 'games (ratios changed)');
+      }
+      try {
+        const b = document.getElementById('pc-zcode-bridge-badge');
+        const sp = currentZcodeSportFromUrl() || '?';
+        if (b) {
+          const count = zcodeHasGames(payload) ? payload.games.length : n;
+          b.textContent = '4C bridge · ' + sp + (count ? ' · ' + count + ' ratios' : '');
+        }
+      } catch (_) {}
+      if (thisTabSnapshotReady()) {
+        stopFirstRetry();
+        scheduleSteadyPoll();
+        armLiveRatioObserver();
+      }
+      return n;
+    };
+
+    function startFirstRetry() {
+      if (thisTabSnapshotReady()) {
+        stopFirstRetry();
+        tick(false); // scrape now; tick arms the steady poll + live MO
+        return;
+      }
+      if (retryTimer) return;
+      retryStartedAt = Date.now();
+      tick(false);
+      if (thisTabSnapshotReady()) return;
+      retryTimer = setInterval(() => {
+        if (thisTabSnapshotReady()) {
+          stopFirstRetry();
+          scheduleSteadyPoll();
+          armLiveRatioObserver();
+          return;
+        }
+        if (retryStartedAt && Date.now() - retryStartedAt > FIRST_RETRY_CAP_MS) {
+          stopFirstRetry();
+          // Keep polling lightly even if the first fill never landed.
+          tick(false);
+          scheduleSteadyPoll();
+          armLiveRatioObserver();
+          return;
+        }
+        tick(false);
+      }, FIRST_RETRY_MS);
+      try {
+        if (!retryMo && document.body) {
+          retryMo = new MutationObserver(() => {
+            if (retryMoTo) return;
+            retryMoTo = setTimeout(() => {
+              retryMoTo = 0;
+              if (!thisTabSnapshotReady()) tick(false);
+            }, 800);
+          });
+          retryMo.observe(document.body, { childList: true, subtree: true });
+        }
+      } catch (_) {}
+    }
+
     try {
       if (typeof GM_addValueChangeListener === 'function') {
         GM_addValueChangeListener(ZCODE_SPORT_WANT_KEY, (_n, _o, v, remote) => {
           log('ZCode sport want event', v && v.sport, remote ? 'remote' : 'local');
           applyZcodeSportFromWant(v);
+          setTimeout(() => {
+            if (thisTabSnapshotReady()) tick(false);
+            else startFirstRetry();
+          }, 400);
+        });
+        GM_addValueChangeListener(ZCODE_FORCE_KEY, () => {
+          zcodeLastScrapeAt = 0;
+          stopFirstRetry();
+          tick(true);
+          if (!thisTabSnapshotReady()) startFirstRetry();
+          else scheduleSteadyPoll();
         });
       }
     } catch (_) {}
@@ -1191,43 +1687,7 @@
         applyZcodeSportFromWant(want);
       } catch (_) {}
     }, 800);
-
-    let lastFp = '';
-    const tick = (force) => {
-      const n = publishZcodeLive(!!force);
-      let fp = '';
-      try {
-        const payload = GM_getValue(ZCODE_LIVE_KEY, null);
-        fp = payload && payload.fp != null ? String(payload.fp) : '';
-      } catch (_) {}
-      if (fp && fp !== lastFp) {
-        lastFp = fp;
-        log('ZCode live published', n, 'games (ratios changed)');
-        try {
-          const b = document.getElementById('pc-zcode-bridge-badge');
-          const sp = currentZcodeSportFromUrl() || '?';
-          if (b) b.textContent = '4C bridge · ' + sp + ' · ' + n + ' ratios';
-        } catch (_) {}
-      }
-    };
-    tick(true);
-    setInterval(() => tick(false), 2500);
-    try {
-      let moTimer = 0;
-      const mo = new MutationObserver(() => {
-        if (moTimer) clearTimeout(moTimer);
-        moTimer = setTimeout(() => {
-          moTimer = 0;
-          tick(false);
-        }, 200);
-      });
-      const root =
-        document.querySelector('.GamesList, .main, #app, main') || document.body;
-      if (root) {
-        // characterData: catch in-place <b> ratio text updates
-        mo.observe(root, { childList: true, subtree: true, characterData: true });
-      }
-    } catch (_) {}
+    startFirstRetry();
     try {
       if (!document.getElementById('pc-zcode-bridge-badge')) {
         const b = document.createElement('div');
@@ -1239,7 +1699,22 @@
         document.documentElement.appendChild(b);
       }
     } catch (_) {}
-    log('ZCode → 4C bridge armed (live Public Ratio + sport sync · v3.2.1)');
+    armLiveRatioObserver();
+    // Drop this tab's sport when it closes so 4C never paints an abandoned scrape.
+    const revokeThisSport = () => {
+      try {
+        revokeZcodeLiveForSport(currentZcodeSportFromUrl());
+      } catch (_) {}
+    };
+    window.addEventListener('pagehide', revokeThisSport);
+    window.addEventListener('beforeunload', revokeThisSport);
+    log(
+      'ZCode → 4C bridge armed (poll ' +
+        ZCODE_POLL_MS / 1000 +
+        's · scrape min ' +
+        ZCODE_SCRAPE_MIN_MS / 1000 +
+        's · no cache · v3.13.32)'
+    );
   }
 
   function toProb(a) {
@@ -1365,12 +1840,23 @@
   }
 
   /**
-   * Basketball: keep league nav on All so NBA + NCAAB share one board.
-   * Skips props / outrights / game pages. Does not open Zcode.
+   * Basketball: default league nav to All (NBA + NCAAB).
+   * Manual NBA / NCAAB / etc. clicks stick until you leave basketball or click All.
    */
   function ensureBasketballAllChip() {
     const path = String(location.pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
-    if (!/(^|\/)basketball(\/|$)/.test(path)) return false;
+    const onBb = /(^|\/)basketball(\/|$)/.test(path);
+    const info = routeInfo();
+    const boardKey = (info.live ? 'live' : 'pre') + '|' + (onBb ? 'basketball' : String(info.sport || info.board || ''));
+    if (!onBb) {
+      lastBasketballBoardKey = boardKey;
+      return false;
+    }
+    if (boardKey !== lastBasketballBoardKey) {
+      lastBasketballBoardKey = boardKey;
+      basketballLeagueUserOverride = false;
+    }
+    if (basketballLeagueUserOverride) return false;
     if (/\/(props|outrights|game)(\/|$)/.test(path)) return false;
 
     const nav =
@@ -1402,6 +1888,7 @@
     if (now - lastBasketballAllEnsureAt < 1500) return false;
     lastBasketballAllEnsureAt = now;
 
+    basketballAllAutoClick = true;
     try {
       allChip.click();
       log('Basketball → All (include NCAAB)');
@@ -1412,6 +1899,10 @@
         location.assign(href);
         return true;
       }
+    } finally {
+      setTimeout(() => {
+        basketballAllAutoClick = false;
+      }, 0);
     }
     return false;
   }
@@ -1425,83 +1916,141 @@
   }
 
   function ensureStyle() {
+    const existing = document.getElementById(STYLE_ID);
+    const styleMark = DISPLAY_TDR_RANKS
+      ? 'tdr-display-on-v1'
+      : DISPLAY_TDR_BL_ENDS
+        ? 'tdr-display-bl-ends-v1'
+        : 'tdr-display-off-v1';
+    if (
+      styleReady &&
+      existing &&
+      existing.textContent.indexOf('hold-arb-glow-v3') >= 0 &&
+      existing.textContent.indexOf('take-rec-otc-v2') >= 0 &&
+      existing.textContent.indexOf(styleMark) >= 0
+    )
+      return;
+    styleReady = false;
     let s = document.getElementById(STYLE_ID);
     if (!s) {
       s = document.createElement('style');
       s.id = STYLE_ID;
       document.documentElement.appendChild(s);
     }
+    const tdrAfterCss = `.gRow.gGame .cell.cBook .px[data-pc-rank]::after{content:attr(data-pc-rank);flex:1 0 100%;display:block;width:100%;margin:0;padding:0 2px;border-radius:2px;font:800 7px/1.05 Sora,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#000!important;letter-spacing:0;pointer-events:none;white-space:nowrap;text-align:center;background:#7ecbff}
+.gRow.gGame .cell.cBook .px[data-pc-rt="dog"]::after{background:#ff8a8a}
+.gRow.gGame .cell.cBook .px[data-pc-rt="draw"]::after{background:#ffa500}
+.gRow.gGame .cell.cBook .px[data-pc-tt="best"]::after{background:#ffeb3b}
+.gRow.gGame .cell.cBook .px[data-pc-tt="green"]::after{background:#a6ff4d}
+.gRow.gGame .cell.cBook .px[data-pc-tt="deep"]::after{background:#4a9eff}`;
+    // Full display wraps every book px; BL-ends only wraps the few cells that have a badge.
+    const bookPxCss = DISPLAY_TDR_RANKS
+      ? `.gRow.gGame .cell.cBook .px{position:relative;display:inline-flex!important;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:center;gap:0 2px;line-height:1;overflow:visible}
+${tdrAfterCss}`
+      : DISPLAY_TDR_BL_ENDS
+        ? `.gRow.gGame .cell.cBook .px[data-pc-rank]{position:relative;display:inline-flex!important;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:center;gap:0 2px;line-height:1;overflow:visible}
+${tdrAfterCss}`
+        : `/* ${styleMark} — ranks stay in-memory; no badge layout under every book */`;
     const css = `
-.gRow.gGame .cell.cBook .px{position:relative;display:inline-flex!important;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.15}
-.pc-price-rank{display:inline-block;margin-top:1px;padding:0 4px;border-radius:4px;font:800 9px/1.2 Sora,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#000!important;letter-spacing:0;pointer-events:none;white-space:nowrap;background:#7ecbff}
-.pc-price-rank.role-dog{background:#ff8a8a}
-.pc-price-rank.role-draw{background:#ffa500}
-.pc-price-rank.tier-best{background:#ffeb3b}
-.pc-price-rank.tier-green{background:#a6ff4d}
-.pc-price-rank.tier-deep{background:#4a9eff}
-/* My Line: inset border + glow when Vertex is board best — Take FAV green / DOG orange */
-.gRow.gGame .cell.cFair.pc-vertex-best{
-  border-radius:5px!important;
+/* ${styleMark} */
+.gRow.gGame .cell.cBook,.gRow.gGame .cell.cBest{overflow:visible}
+${bookPxCss}
+.gRow.gGame .cell.cBest .px{position:relative;display:inline-flex!important;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:0 2px;line-height:1;overflow:visible}
+.gRow.gGame .cell.cBest .px[data-pc-pingap]::after{content:attr(data-pc-pingap);flex:0 0 auto;display:inline-block;margin:0;padding:0 2px;border-radius:2px;font:800 7px/1.05 Sora,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0;pointer-events:none;white-space:nowrap;text-align:center}
+.gRow.gGame .cell.cBest .px[data-pc-pg="fav"]::after{background:#2e7d32;color:#fff!important}
+.gRow.gGame .cell.cBest .px[data-pc-pg="dog"]::after{background:#ff6a00;color:#000!important}
+/* My Line: inset outline when Vertex is board best — Take FAV green / DOG orange */
+.gRow.gGame .cell.cFair.pc-vertex-best{border-radius:3px!important}
+.gRow.gGame .cell.cFair.pc-vertex-best.role-fav{outline:1px solid rgba(57,255,20,.95);outline-offset:-1px}
+.gRow.gGame .cell.cFair.pc-vertex-best.role-dog{outline:1px solid rgba(255,106,0,.95);outline-offset:-1px}
+.gRow.gGame.pc-hold-tight{outline:1px solid rgba(255,214,0,.95);outline-offset:-1px;position:relative;z-index:1}
+.gRow.gGame.pc-hold-arb{outline:1px solid #ffffff;outline-offset:-1px;position:relative;z-index:1}
+.gRow.gGame .cell.cHold.pc-hold-tight{outline:1px solid rgba(255,220,40,.95);outline-offset:-1px;color:#ffe566;text-shadow:0 0 4px rgba(255,214,0,.7)}
+/* hold-arb-glow-v3 — pure #ffffff inner glow, stacked above the cell */
+.gRow.gGame .cell.cHold.pc-hold-arb{
+  position:relative!important;
+  z-index:40!important;
+  overflow:visible!important;
+  isolation:isolate;
+  outline:none!important;
+  color:#ffffff!important;
+  text-shadow:none!important;
+  filter:none!important;
+  background-image:none!important;
+  box-shadow:none!important;
+  --darkreader-inline-boxshadow:none!important;
+  --darkreader-inline-color:#ffffff!important;
+  --darkreader-text:#ffffff!important;
 }
-.gRow.gGame .cell.cFair.pc-vertex-best.role-fav{
-  box-shadow:
-    inset 0 0 0 1.5px rgba(57,255,20,.95),
-    inset 0 0 10px rgba(57,255,20,.45),
-    inset 0 0 18px rgba(57,255,20,.25)!important;
+.gRow.gGame .cell.cHold.pc-hold-arb::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  z-index:999;
+  mix-blend-mode:normal;
+  background:transparent!important;
+  box-shadow:inset 0 0 0 1px #ffffff,inset 0 0 8px 2px #ffffff,inset 0 0 16px 4px #ffffff!important;
+  --darkreader-inline-boxshadow:inset 0 0 0 1px #ffffff,inset 0 0 8px 2px #ffffff,inset 0 0 16px 4px #ffffff!important;
 }
-.gRow.gGame .cell.cFair.pc-vertex-best.role-dog{
-  box-shadow:
-    inset 0 0 0 1.5px rgba(255,106,0,.95),
-    inset 0 0 10px rgba(255,106,0,.45),
-    inset 0 0 18px rgba(255,106,0,.25)!important;
-}
-.gRow.gGame .cell.cFair.pc-circa-take{position:relative}
-.gRow.gGame .cell.cFair.pc-circa-take > .px{visibility:hidden!important;pointer-events:none}
-.gRow.gGame .cell.cFair .pc-circa-take-msg{position:absolute;inset:2px 3px;display:flex;align-items:center;justify-content:center;text-align:center;font:800 9px/1.15 Sora,system-ui,sans-serif;pointer-events:none;z-index:2;overflow:hidden;hyphens:auto}
-.gRow.gGame .cell.cFair .pc-circa-take-msg.role-fav{color:#39ff14;text-shadow:0 0 10px rgba(57,255,20,.7),0 0 2px #000}
-.gRow.gGame .cell.cFair .pc-circa-take-msg.role-dog{color:#ff6a00;text-shadow:0 0 10px rgba(255,106,0,.7),0 0 2px #000}
-.gRow.gGame .team .pc-otc-badge{display:inline-block;margin-right:5px;vertical-align:middle;font:900 11px/1 Sora,system-ui,sans-serif;letter-spacing:-0.01em;pointer-events:none;white-space:nowrap;flex-shrink:0}
-.gRow.gGame .team .pc-otc-badge.role-fav{color:#39ff14;text-shadow:0 0 8px rgba(57,255,20,.55),0 0 1px #000}
-.gRow.gGame .team .pc-otc-badge.role-dog{color:#ff9800;text-shadow:0 0 8px rgba(255,152,0,.45),0 0 1px #000}
-.gRow.gGame .team.pc-zcode-host{position:relative!important}
-.gRow.gGame .team .pc-zcode-ratio{position:absolute;right:0;top:50%;transform:translateY(-50%);margin:0;padding:2px 7px;border-radius:5px;font:800 12px/1.2 Sora,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0;pointer-events:none;white-space:nowrap;z-index:3;background:#1e3a4c;color:#9ed0ff;border:1px solid rgba(158,208,255,.28);box-shadow:0 1px 3px rgba(0,0,0,.3)}
-.gRow.gGame .team .pc-zcode-ratio.tier-lo{background:#2e7d32;color:#e8ffe9;border-color:rgba(165,214,167,.55)}
-.gRow.gGame .team .pc-zcode-ratio.tier-soft{background:#1e3a4c;color:#9ed0ff;border-color:rgba(158,208,255,.28)}
-.gRow.gGame .team .pc-zcode-ratio.tier-mid{background:#f0c419;color:#1a1400;border-color:rgba(240,196,25,.7)}
-.gRow.gGame .team .pc-zcode-ratio.tier-hi{background:#d32f2f;color:#fff;border-color:rgba(255,180,180,.55)}
-.gRow.gGame .team .pc-zcode-ratio.role-dog{background:#1e3a4c!important;color:#9ed0ff!important;border-color:rgba(158,208,255,.28)!important}
+.gRow.gGame .cell.cFair[data-pc-take]{position:relative}
+.gRow.gGame .cell.cFair[data-pc-take] > .px{visibility:hidden!important;pointer-events:none}
+.gRow.gGame .cell.cFair[data-pc-take]::after{content:attr(data-pc-take);position:absolute;inset:0 1px;display:flex;align-items:center;justify-content:center;text-align:center;font:800 7px/1.05 Sora,system-ui,sans-serif;pointer-events:none;z-index:2;overflow:hidden;hyphens:auto}
+.gRow.gGame .cell.cFair[data-pc-take-role="fav"]::after{color:#39ff14;text-shadow:0 0 8px rgba(57,255,20,.55),0 0 2px #000}
+.gRow.gGame .cell.cFair[data-pc-take-role="dog"]::after{color:#ff6a00;text-shadow:0 0 8px rgba(255,106,0,.55),0 0 2px #000}
+.gRow.gGame .team[data-pc-otc]::before{content:"O->C";display:inline-block;margin-right:3px;vertical-align:middle;font:900 8px/1 Sora,system-ui,sans-serif;letter-spacing:-0.01em;pointer-events:none;white-space:nowrap;flex-shrink:0}
+.gRow.gGame .team[data-pc-otc="fav"]::before{color:#39ff14;text-shadow:0 0 6px rgba(57,255,20,.45),0 0 1px #000}
+.gRow.gGame .team[data-pc-otc="dog"]::before{color:#ff9800;text-shadow:0 0 6px rgba(255,152,0,.4),0 0 1px #000}
+.gRow.gGame .team[data-pc-zratio]{position:relative!important}
+.gRow.gGame .team[data-pc-zratio]::after{content:attr(data-pc-zratio);position:absolute;right:0;top:50%;transform:translateY(-50%);margin:0;padding:0 3px;border-radius:3px;font:800 8px/1.15 Sora,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0;pointer-events:none;white-space:nowrap;z-index:3;background:#1e3a4c;color:#9ed0ff;border:1px solid rgba(158,208,255,.28)}
+.gRow.gGame .team[data-pc-ztier="lo"]::after{background:#2e7d32;color:#e8ffe9;border-color:rgba(165,214,167,.55)}
+.gRow.gGame .team[data-pc-ztier="soft"]::after{background:#1e3a4c;color:#9ed0ff;border-color:rgba(158,208,255,.28)}
+.gRow.gGame .team[data-pc-ztier="mid"]::after{background:#f0c419;color:#1a1400;border-color:rgba(240,196,25,.7)}
+.gRow.gGame .team[data-pc-ztier="hi"]::after{background:#d32f2f;color:#fff;border-color:rgba(255,180,180,.55)}
+.gRow.gGame .team[data-pc-zrole="dog"]::after{background:#1e3a4c!important;color:#9ed0ff!important;border-color:rgba(158,208,255,.28)!important}
 /* Name highlight on .team only — never pad/border .tName (triggers 4C abbr flicker) */
-.gRow.gGame .team.pc-zcode-name{border-radius:6px;box-shadow:inset 0 0 0 1px transparent}
-.gRow.gGame .team.pc-zcode-name.pc-zr-lo{background:rgba(46,125,50,.55);box-shadow:inset 0 0 0 1px rgba(165,214,167,.55)}
-.gRow.gGame .team.pc-zcode-name.pc-zr-soft{background:rgba(30,58,76,.65);box-shadow:inset 0 0 0 1px rgba(158,208,255,.28)}
-.gRow.gGame .team.pc-zcode-name.pc-zr-mid{background:rgba(240,196,25,.55);box-shadow:inset 0 0 0 1px rgba(240,196,25,.7)}
-.gRow.gGame .team.pc-zcode-name.pc-zr-hi{background:rgba(211,47,47,.55);box-shadow:inset 0 0 0 1px rgba(255,180,180,.55)}
-.gRow.gGame .team.pc-zcode-name .tName{font-weight:800}
+.gRow.gGame .team[data-pc-zrole="fav"]{border-radius:3px}
+.gRow.gGame .team[data-pc-ztier="lo"]{background:rgba(46,125,50,.55);outline:1px solid rgba(165,214,167,.55);outline-offset:-1px}
+.gRow.gGame .team[data-pc-ztier="soft"]{background:rgba(30,58,76,.65);outline:1px solid rgba(158,208,255,.28);outline-offset:-1px}
+.gRow.gGame .team[data-pc-ztier="mid"]{background:rgba(240,196,25,.55);outline:1px solid rgba(240,196,25,.7);outline-offset:-1px}
+.gRow.gGame .team[data-pc-ztier="hi"]{background:rgba(211,47,47,.55);outline:1px solid rgba(255,180,180,.55);outline-offset:-1px}
+.gRow.gGame .team[data-pc-zrole="fav"] .tName{font-weight:800}
 .board .state.err,.boardPane .state.err,section.board .state.err{display:none!important}
-#pc-book-league-sync{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:99999;max-width:260px;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(18,26,38,.92);color:#c8d4e6;font:650 11px/1.35 Sora,system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none}
-#pc-book-league-sync .pc-bl-title{font:800 11px/1.2 Sora,system-ui,sans-serif;color:#e8eef8;margin:0 0 2px}
+#pc-open-zcode{position:fixed;right:max(10px,env(safe-area-inset-right,0px));top:max(8px,env(safe-area-inset-top,0px));z-index:100001;min-height:36px;min-width:6.2em;padding:8px 12px;border:1px solid rgba(158,208,255,.45);border-radius:9px;background:rgba(30,58,76,.96);color:#9ed0ff;font:800 12px/1.1 Sora,system-ui,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.35);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+#pc-open-zcode.on{border-color:rgba(57,255,20,.5);color:#9dff8a;background:rgba(24,58,36,.96)}
+#pc-open-zcode:hover{border-color:rgba(158,208,255,.75);color:#dff0ff}
+@media (max-width:900px),(pointer:coarse){
+  #pc-open-zcode{min-height:44px;padding:12px 16px;font-size:14px;top:max(52px,env(safe-area-inset-top,0px))}
+}
+#pc-book-league-sync{position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:99999;max-width:210px;padding:6px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(18,26,38,.92);color:#c8d4e6;font:650 10px/1.3 Sora,system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);pointer-events:none}
+#pc-book-league-sync .pc-bl-title{font:800 10px/1.15 Sora,system-ui,sans-serif;color:#e8eef8;margin:0 0 1px}
 #pc-book-league-sync.warn{border-color:rgba(252,165,165,.35);color:#fecaca}
-#pc-take-rec{position:fixed;right:max(14px,env(safe-area-inset-right,0px));top:max(58px,env(safe-area-inset-top,0px));z-index:100000;width:min(320px,calc(100vw - 28px));max-height:min(42vh,420px);overflow:auto;-webkit-overflow-scrolling:touch;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(12,18,28,.94);color:#c8d4e6;font:650 11px/1.35 Sora,system-ui,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.4);backdrop-filter:blur(8px);touch-action:manipulation;-webkit-text-size-adjust:100%}
+/* take-rec-otc-v2 — O->C immediately after the team name */
+#pc-take-rec{position:fixed;left:50%;top:max(8px,env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:100000;width:min(420px,calc(100vw - 24px));max-height:min(46vh,440px);overflow:auto;-webkit-overflow-scrolling:touch;padding:7px 8px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(12,18,28,.96);color:#c8d4e6;font:650 10px/1.3 Sora,system-ui,sans-serif;box-shadow:0 8px 22px rgba(0,0,0,.4);touch-action:manipulation;-webkit-text-size-adjust:100%}
 #pc-take-rec .pc-tr-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;cursor:pointer;-webkit-user-select:none;user-select:none}
 #pc-take-rec .pc-tr-head-text{min-width:0;flex:1}
-#pc-take-rec .pc-tr-title{font:800 12px/1.2 Sora,system-ui,sans-serif;color:#e8eef8;letter-spacing:-0.01em}
+#pc-take-rec .pc-tr-title{font:800 11px/1.15 Sora,system-ui,sans-serif;color:#e8eef8;letter-spacing:-0.01em}
 #pc-take-rec .pc-tr-sub{font:650 9px/1.2 Sora,system-ui,sans-serif;color:#8a97ad}
 #pc-take-rec .pc-tr-tog{flex-shrink:0;width:32px;height:32px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(255,255,255,.06);color:#e8eef8;font:800 14px/1 Sora,system-ui,sans-serif;cursor:pointer;touch-action:manipulation}
-#pc-take-rec.pc-tr-collapsed{max-height:none;overflow:hidden}
+#pc-take-rec.pc-tr-collapsed{max-height:none;overflow:hidden;width:auto;min-width:9.5em;padding:6px 8px}
+#pc-take-rec.pc-tr-collapsed .pc-tr-head{margin:0}
 #pc-take-rec.pc-tr-collapsed .pc-tr-body{display:none}
+#pc-take-rec.pc-tr-collapsed .pc-tr-sub{display:none}
+#pc-take-rec.pc-tr-collapsed .pc-tr-zcode-head{display:none}
 #pc-take-rec.pc-tr-collapsed .pc-tr-tog{transform:rotate(-90deg)}
 @media (max-width:900px),(pointer:coarse){
   #pc-take-rec{
-    top:auto;
-    right:max(10px,env(safe-area-inset-right,0px));
-    left:max(10px,env(safe-area-inset-left,0px));
-    bottom:calc(52px + env(safe-area-inset-bottom,0px));
-    width:auto;
+    top:max(52px,env(safe-area-inset-top,0px));
+    left:50%;
+    right:auto;
+    bottom:auto;
+    transform:translateX(-50%);
+    width:min(440px,calc(100vw - 20px));
     max-height:min(46vh,380px);
     z-index:100001;
   }
   #pc-take-rec.pc-tr-collapsed{
-    left:auto;
     width:auto;
     max-width:calc(100vw - 24px);
     padding:8px 10px;
@@ -1523,7 +2072,7 @@
 #pc-take-rec .pc-tr-lbl.role-fav{color:#39ff14;text-shadow:0 0 8px rgba(57,255,20,.35)}
 #pc-take-rec .pc-tr-lbl.role-dog{color:#ff6a00;text-shadow:0 0 8px rgba(255,106,0,.35)}
 #pc-take-rec .pc-tr-empty{color:#6b7a90;font:650 10px/1.3 Sora,system-ui,sans-serif;padding:2px 0 4px}
-#pc-take-rec .pc-tr-row{display:flex;align-items:center;gap:6px;width:100%;margin:0 0 3px;padding:5px 7px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(255,255,255,.03);color:inherit;font:inherit;text-align:left;cursor:pointer}
+#pc-take-rec .pc-tr-row{display:flex;flex-direction:column;align-items:stretch;gap:3px;width:100%;margin:0 0 3px;padding:6px 8px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(255,255,255,.03);color:#e8eef8;font:inherit;text-align:left;cursor:pointer}
 #pc-take-rec .pc-tr-row:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16)}
 #pc-take-rec .pc-tr-row.role-fav{
   border-color:rgba(57,255,20,.55);
@@ -1550,8 +2099,8 @@
 #pc-take-rec .pc-tr-when{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:3.4em;line-height:1.05}
 #pc-take-rec .pc-tr-day{font:800 8px/1 Sora,system-ui,sans-serif;color:#7b879c;letter-spacing:0.02em;text-transform:uppercase}
 #pc-take-rec .pc-tr-time{font:800 10px/1 Sora,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#9aa8bd;letter-spacing:-0.02em}
-#pc-take-rec .pc-tr-str{flex-shrink:0;display:flex;align-items:baseline;justify-content:center;gap:1px;min-width:2.35em;padding:3px 5px;border-radius:5px;background:rgba(255,255,255,.07);font:800 12px/1 Sora,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#e8eef8;letter-spacing:-0.02em}
-#pc-take-rec .pc-tr-str .pc-tr-str-den{font:650 8px/1 Sora,system-ui,sans-serif;color:#8a97ad}
+#pc-take-rec .pc-tr-str{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:2.8em;padding:3px 5px;border-radius:5px;background:rgba(255,255,255,.07);font:800 11px/1 Sora,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#e8eef8;letter-spacing:-0.02em}
+#pc-take-rec .pc-tr-str .pc-tr-str-den{font:650 7px/1 Sora,system-ui,sans-serif;color:#8a97ad;text-transform:uppercase;letter-spacing:0.04em}
 #pc-take-rec .pc-tr-str.hi{background:rgba(57,255,20,.16);color:#9dff8a}
 #pc-take-rec .pc-tr-str.mid{background:rgba(240,196,25,.16);color:#f5d76e}
 #pc-take-rec .pc-tr-str.lo{background:rgba(211,47,47,.18);color:#ff8a80}
@@ -1560,17 +2109,28 @@
 #pc-take-rec .pc-tr-row.role-dog .pc-tr-day{color:#c67a3a}
 #pc-take-rec .pc-tr-row.role-fav .pc-tr-time{color:#9dff8a;text-shadow:0 0 8px rgba(57,255,20,.45)}
 #pc-take-rec .pc-tr-row.role-dog .pc-tr-time{color:#ffb078;text-shadow:0 0 8px rgba(255,106,0,.45)}
-#pc-take-rec .pc-tr-teams{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;overflow:hidden}
-#pc-take-rec .pc-tr-take{font:800 11px/1.15 Sora,system-ui,sans-serif;color:#fff;text-shadow:0 0 1px #000;margin-right:4px;flex-shrink:0}
-#pc-take-rec .pc-tr-pick{display:flex;align-items:baseline;max-width:100%;overflow:hidden}
-#pc-take-rec .pc-tr-team{min-width:0;font:800 11px/1.15 Sora,system-ui,sans-serif;color:#e8eef8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#pc-take-rec .pc-tr-opp{max-width:100%;font:650 9px/1.15 Sora,system-ui,sans-serif;color:#8a97ad;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#pc-take-rec .pc-tr-row.role-fav .pc-tr-team{color:#39ff14;text-shadow:0 0 10px rgba(57,255,20,.55),0 0 2px #000}
-#pc-take-rec .pc-tr-row.role-dog .pc-tr-team{color:#ff6a00;text-shadow:0 0 10px rgba(255,106,0,.55),0 0 2px #000}
+#pc-take-rec .pc-tr-main{display:flex;align-items:baseline;gap:6px;min-width:0;width:100%}
+#pc-take-rec .pc-tr-take{font:800 12px/1.2 Sora,system-ui,sans-serif;color:#fff!important;text-shadow:0 0 1px #000;flex-shrink:0}
+#pc-take-rec .pc-tr-team{flex:1 1 auto;min-width:8em;font:800 14px/1.2 Sora,system-ui,sans-serif;color:#fff!important;white-space:normal;overflow:visible;text-overflow:clip;word-break:break-word}
+#pc-take-rec .pc-tr-role{flex-shrink:0;font:800 12px/1 Sora,system-ui,sans-serif;letter-spacing:0.04em}
+#pc-take-rec .pc-tr-row.role-fav .pc-tr-role{color:#39ff14!important}
+#pc-take-rec .pc-tr-row.role-dog .pc-tr-role{color:#ffb078!important}
+#pc-take-rec .pc-tr-otc{margin-left:6px;font:900 11px/1 Sora,system-ui,sans-serif;letter-spacing:-0.01em;white-space:nowrap}
+#pc-take-rec .pc-tr-otc.fav{color:#39ff14;text-shadow:0 0 6px rgba(57,255,20,.45),0 0 1px #000}
+#pc-take-rec .pc-tr-otc.dog{color:#ff9800;text-shadow:0 0 6px rgba(255,152,0,.4),0 0 1px #000}
+#pc-take-rec .pc-tr-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
+#pc-take-rec .pc-tr-opp{font:650 11px/1.2 Sora,system-ui,sans-serif;color:#c5d0e0!important;white-space:normal}
+#pc-take-rec .pc-tr-row.role-fav .pc-tr-team{color:#39ff14!important;text-shadow:0 0 10px rgba(57,255,20,.55),0 0 2px #000}
+#pc-take-rec .pc-tr-row.role-dog .pc-tr-team{color:#ffb078!important;text-shadow:0 0 10px rgba(255,106,0,.55),0 0 2px #000}
 #pc-take-rec .pc-tr-ratio{flex-shrink:0;font:800 11px/1 Sora,system-ui,sans-serif;font-variant-numeric:tabular-nums;padding:2px 6px;border-radius:5px}
 #pc-take-rec .pc-tr-ratio.lo{background:#2e7d32;color:#e8ffe9}
 #pc-take-rec .pc-tr-ratio.mid{background:#f0c419;color:#1a1400}
 #pc-take-rec .pc-tr-ratio.hi{background:#d32f2f;color:#fff}
+#pc-take-rec .pc-tr-ratio.soft{background:#1e3a4c;color:#9ed0ff}
+#pc-take-rec .pc-tr-hold{flex-shrink:0;font:800 10px/1 Sora,system-ui,sans-serif;font-variant-numeric:tabular-nums;padding:2px 5px;border-radius:5px;background:rgba(255,255,255,.08);color:#c8d4e6}
+#pc-take-rec .pc-tr-hold.tight{background:rgba(255,214,0,.18);color:#ffe566}
+#pc-take-rec .pc-tr-hold.arb{background:rgba(255,255,255,.2);color:#fff}
+#pc-take-rec .pc-tr-hold.wide{background:rgba(57,255,20,.14);color:#9dff8a}
 #pc-take-rec .pc-tr-agree{flex-shrink:0;font:650 9px/1 Sora,system-ui,sans-serif;color:#8a97ad;font-variant-numeric:tabular-nums}
 #pc-take-rec .pc-tr-tools{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
 #pc-take-rec .pc-tr-zcode-btn,#pc-take-rec .pc-tr-against-btn{flex:1;min-width:0;margin:0;padding:6px 8px;border:1px solid rgba(255,255,255,.14);border-radius:8px;background:rgba(255,255,255,.05);color:#9aa8bd;font:750 10px/1.2 Sora,system-ui,sans-serif;cursor:pointer;text-align:left;touch-action:manipulation}
@@ -1586,23 +2146,28 @@
 #pc-take-rec .pc-tr-move.with{background:rgba(100,120,150,.22);color:#9aa8bd}
 #pc-take-rec .pc-tr-move.vs{background:rgba(255,106,0,.22);color:#ffb078}
 #pc-take-rec .pc-tr-row.role-fav .pc-tr-move.vs{background:rgba(57,255,20,.16);color:#9dff8a}
-.gRow.gGame.pc-tr-flash{outline:2px solid rgba(57,255,20,.85);outline-offset:-2px;border-radius:6px}
+.gRow.gGame.pc-tr-flash{outline:1px solid rgba(57,255,20,.85);outline-offset:-1px;border-radius:3px}
 `;
     if (s.textContent !== css) s.textContent = css;
+    styleReady = true;
+  }
+
+  function stripLegacyOverlayNodes() {
+    if (strippedLegacyMarks) return;
+    strippedLegacyMarks = true;
+    document
+      .querySelectorAll('.pc-price-rank, .pc-otc-badge, .pc-zcode-ratio, .pc-circa-take-msg')
+      .forEach((n) => n.remove());
   }
 
   function tradBoardGames() {
-    return document.querySelectorAll(
-      [
-        '.gTable .gRow.gGame[data-game]',
-        '.gTable .gRow.gGame[id^="g-"]',
-        'section.trad .gRow.gGame[data-game]',
-        '.boardPane .gRow.gGame[data-game]',
-        '.board .gRow.gGame[data-game]',
-        '.gScroll .gRow.gGame[data-game]',
-        '.gRow.gGame[data-game]',
-      ].join(', ')
-    );
+    if (boardGamesCache) return boardGamesCache;
+    const root =
+      document.querySelector('.gTable') ||
+      document.querySelector('section.trad .gScroll') ||
+      document.querySelector('.boardPane.trad');
+    if (root) return root.querySelectorAll('.gRow.gGame[data-game]');
+    return document.querySelectorAll('.gRow.gGame[data-game]');
   }
 
   function tradFairCell(gameEl) {
@@ -1622,8 +2187,42 @@
     return Array.from(head.querySelectorAll('.hCell.hBook[data-code]'));
   }
 
+  function tradBookHeaderBundle() {
+    const els = tradBookHeaderEls();
+    const head = els.length ? els[0].parentElement : null;
+    const n = els.length;
+    const sig =
+      n &&
+      String(els[0].getAttribute('data-code') || '') +
+        '|' +
+        String(els[n - 1].getAttribute('data-code') || '');
+    if (
+      headerBundleCache.head === head &&
+      headerBundleCache.n === n &&
+      headerBundleCache.sig === sig &&
+      headerBundleCache.codes.length === n
+    ) {
+      return headerBundleCache;
+    }
+    const codes = els.map((el) => String(el.getAttribute('data-code') || '').toUpperCase());
+    const names = els.map((el) => {
+      const nameEl = el.querySelector('.hName');
+      const t = nameEl
+        ? String(nameEl.textContent || '')
+            .replace(/\s+/g, ' ')
+            .trim()
+        : '';
+      if (t) return t;
+      const img = el.querySelector('img.logo, img');
+      const alt = img ? String(img.getAttribute('alt') || '').trim() : '';
+      return alt || String(el.getAttribute('data-code') || '').toUpperCase();
+    });
+    headerBundleCache = { head: head, n: n, sig: sig, codes: codes, names: names };
+    return headerBundleCache;
+  }
+
   function tradBookHeaderCodes() {
-    return tradBookHeaderEls().map((el) => String(el.getAttribute('data-code') || '').toUpperCase());
+    return tradBookHeaderBundle().codes;
   }
 
   function tradPxAmerican(el) {
@@ -1674,9 +2273,9 @@
     if (!el) return null;
     const num = el.querySelector('small.num, :scope > .num, .lp .trigger');
     if (num) {
-      const m = String(num.textContent || '')
-        .trim()
-        .match(/^([+-]?\d+(?:\.\d+)?)/);
+      const raw = String(num.textContent || '').trim();
+      if (/^(pk|pick(?:em)?|even)$/i.test(raw)) return 0;
+      const m = raw.match(/^([+-]?\d+(?:\.\d+)?)/);
       if (m) return parseFloat(m[1]);
     }
     const ariaHost = el.getAttribute('aria-label')
@@ -1687,25 +2286,7 @@
     return m2 ? parseFloat(m2[1]) : null;
   }
 
-  function tradCellSidePrices(cell) {
-    if (!cell) return [];
-    const pxs = cell.querySelectorAll(':scope > .px, :scope > button.px, :scope > span.px');
-    const n = pxs.length >= 3 ? 3 : Math.min(2, pxs.length);
-    const out = [];
-    for (let i = 0; i < n; i++) out.push(tradPxAmerican(pxs[i]));
-    return out;
-  }
-
-  function tradCellSideLines(cell) {
-    if (!cell) return [];
-    const pxs = cell.querySelectorAll(':scope > .px, :scope > button.px, :scope > span.px');
-    const n = pxs.length >= 3 ? 3 : Math.min(2, pxs.length);
-    const out = [];
-    for (let i = 0; i < n; i++) out.push(tradPxLine(pxs[i]));
-    return out;
-  }
-
-  function tradCellSideEls(cell) {
+  function tradCellPxNodes(cell) {
     if (!cell) return [];
     const pxs = cell.querySelectorAll(':scope > .px, :scope > button.px, :scope > span.px');
     const n = pxs.length >= 3 ? 3 : Math.min(2, pxs.length);
@@ -1714,33 +2295,55 @@
     return out;
   }
 
-  function tradOutcomeCount(gameEl) {
-    const cells = [
-      gameEl.querySelector(':scope > .cell.cFair'),
-      gameEl.querySelector(':scope > .cell.cBest'),
-    ].concat(Array.from(gameEl.querySelectorAll(':scope > .cell.cBook')));
-    let max = 2;
-    for (let i = 0; i < cells.length; i++) {
-      const cell = cells[i];
-      if (!cell) continue;
-      const n = cell.querySelectorAll(':scope > .px, :scope > button.px, :scope > span.px').length;
-      if (n >= 3) return 3;
-      if (n > max) max = n;
+  function tradCellSides(cell) {
+    const pxs = tradCellPxNodes(cell);
+    const prices = [];
+    const lines = [];
+    for (let i = 0; i < pxs.length; i++) {
+      prices.push(tradPxAmerican(pxs[i]));
+      lines.push(tradPxLine(pxs[i]));
     }
-    return max;
+    return { prices: prices, lines: lines, els: pxs };
   }
 
-  function tradFavSideIndex(gameEl) {
-    const nOut = tradOutcomeCount(gameEl);
-    const fair = tradFairCell(gameEl);
+  function tradCellSidePrices(cell) {
+    const pxs = tradCellPxNodes(cell);
+    const out = [];
+    for (let i = 0; i < pxs.length; i++) out.push(tradPxAmerican(pxs[i]));
+    return out;
+  }
+
+  function tradCellSideLines(cell) {
+    const pxs = tradCellPxNodes(cell);
+    const out = [];
+    for (let i = 0; i < pxs.length; i++) out.push(tradPxLine(pxs[i]));
+    return out;
+  }
+
+  function tradCellSideEls(cell) {
+    return tradCellPxNodes(cell);
+  }
+
+  function tradOutcomeCount(gameEl) {
+    const sample =
+      gameEl.querySelector(':scope > .cell.cBest') ||
+      gameEl.querySelector(':scope > .cell.cFair') ||
+      gameEl.querySelector(':scope > .cell.cBook');
+    if (!sample) return 2;
+    const n = sample.querySelectorAll(':scope > .px, :scope > button.px, :scope > span.px').length;
+    return n >= 3 ? 3 : 2;
+  }
+
+  function tradFavSideIndex(gameEl, nOut) {
+    if (nOut == null) nOut = tradOutcomeCount(gameEl);
     const best =
       gameEl.querySelector(':scope > .cell.cBest') || gameEl.querySelector('.cell.cBest');
     const open =
       gameEl.querySelector(':scope > .cell.cOpen') || gameEl.querySelector('.cell.cOpen');
     const homeIdx = nOut >= 3 ? 2 : 1;
-    const linePairs = [tradCellSideLines(fair), tradCellSideLines(best)];
+    const linePairs = [tradCellSideLines(best), tradCellSideLines(open)];
     const books = gameEl.querySelectorAll(':scope > .cell.cBook');
-    for (let i = 0; i < books.length && linePairs.length < 8; i++) {
+    for (let i = 0; i < books.length && i < 4; i++) {
       linePairs.push(tradCellSideLines(books[i]));
     }
     for (let p = 0; p < linePairs.length; p++) {
@@ -1749,12 +2352,8 @@
       if (a == null || h == null || a === h) continue;
       return a < h ? 0 : homeIdx;
     }
-    const pricePairs = [
-      tradCellSidePrices(best),
-      tradCellSidePrices(open),
-      tradCellSidePrices(fair),
-    ];
-    for (let i = 0; i < books.length && pricePairs.length < 14; i++) {
+    const pricePairs = [tradCellSidePrices(best), tradCellSidePrices(open)];
+    for (let i = 0; i < books.length && i < 6; i++) {
       pricePairs.push(tradCellSidePrices(books[i]));
     }
     for (let p = 0; p < pricePairs.length; p++) {
@@ -1769,23 +2368,19 @@
     return null;
   }
 
-  function tradGameBothSidesNegative(gameEl) {
+  function tradGameBothSidesNegative(gameEl, nOut) {
     if (!gameEl) return false;
-    const nOut = tradOutcomeCount(gameEl);
+    if (nOut == null) nOut = tradOutcomeCount(gameEl);
     const homeIdx = nOut >= 3 ? 2 : 1;
-    const cells = [
-      gameEl.querySelector(':scope > .cell.cBest'),
-      gameEl.querySelector(':scope > .cell.cOpen'),
-      gameEl.querySelector(':scope > .cell.cFair'),
-    ].concat(Array.from(gameEl.querySelectorAll(':scope > .cell.cBook')));
-    for (let i = 0; i < cells.length; i++) {
-      const prices = tradCellSidePrices(cells[i]);
-      const a = prices[0];
-      const h = prices[homeIdx];
-      if (a == null || h == null) continue;
-      return a < 0 && h < 0;
-    }
-    return false;
+    const cell =
+      gameEl.querySelector(':scope > .cell.cBest') ||
+      gameEl.querySelector(':scope > .cell.cOpen') ||
+      gameEl.querySelector(':scope > .cell.cBook');
+    if (!cell) return false;
+    const prices = tradCellSidePrices(cell);
+    const a = prices[0];
+    const h = prices[homeIdx];
+    return a != null && h != null && a < 0 && h < 0;
   }
 
   /** Score = American juice moved onto the side's consensus number (alts normalized). */
@@ -1841,35 +2436,151 @@
     return map;
   }
 
-  function priceRankTierClass(rank) {
+  function priceRankTierClass(rank, y) {
+    if (!rank || !y) return '';
     if (rank === 1) return 'tier-best';
-    if (rank >= 2 && rank <= 4) return 'tier-green';
-    if (rank >= 10) return 'tier-deep';
+    const mid = y / 2;
+    if (rank > mid) return 'tier-deep';
+    const greenMax = Math.max(2, Math.floor(y / 4));
+    if (rank <= greenMax) return 'tier-green';
     return '';
   }
 
+  function hidePriceRankAttrs(el) {
+    if (!el || !el.removeAttribute) return;
+    el.removeAttribute('data-pc-rank');
+    el.removeAttribute('data-pc-rt');
+    el.removeAttribute('data-pc-tt');
+    el.removeAttribute('data-pc-jt');
+  }
+
+  function clearPriceRankOnPx(el) {
+    if (!el) return;
+    try {
+      tdrInfoByPx.delete(el);
+    } catch (_) {}
+    hidePriceRankAttrs(el);
+  }
+
+  function paintPriceRankFromCache(el) {
+    if (!el) return;
+    const cached = tdrInfoByPx.get(el);
+    if (!cached || !cached.rank) {
+      hidePriceRankAttrs(el);
+      return;
+    }
+    const label = cached.label || String(cached.rank);
+    const rt = cached.role || 'fav';
+    const tier = priceRankTierClass(cached.rank, cached.y || cached.rank);
+    const tt =
+      tier === 'tier-best' ? 'best' : tier === 'tier-green' ? 'green' : tier === 'tier-deep' ? 'deep' : '';
+    if (el.getAttribute('data-pc-rank') !== label) el.setAttribute('data-pc-rank', label);
+    if (el.getAttribute('data-pc-rt') !== rt) el.setAttribute('data-pc-rt', rt);
+    if (tt) {
+      if (el.getAttribute('data-pc-tt') !== tt) el.setAttribute('data-pc-tt', tt);
+    } else if (el.hasAttribute('data-pc-tt')) el.removeAttribute('data-pc-tt');
+    if (cached.joint) {
+      if (el.getAttribute('data-pc-jt') !== '1') el.setAttribute('data-pc-jt', '1');
+    } else if (el.hasAttribute('data-pc-jt')) el.removeAttribute('data-pc-jt');
+  }
+
+  /** Today's board games only (day chip / tip calendar day). */
+  function isBoardGameToday(gameEl) {
+    if (!gameEl) return false;
+    const dayText = gameDayHeaderText(gameDayHeaderEl(gameEl, { skipTour: true }));
+    if (/\btoday\b/i.test(dayText)) return true;
+    if (/\btomorrow\b/i.test(dayText) || /\byesterday\b/i.test(dayText)) return false;
+    const ms = parseGameStartMs(gameEl);
+    if (ms == null || !Number.isFinite(ms)) {
+      // Undated daily row — treat as today; explicit other-day chips already returned false.
+      return !dayText || !/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun|\d{1,2}\s+[A-Za-z]{3}|[A-Za-z]{3}\s+\d{1,2})\b/i.test(dayText);
+    }
+    const d = new Date(ms);
+    const n = new Date();
+    return (
+      d.getFullYear() === n.getFullYear() &&
+      d.getMonth() === n.getMonth() &&
+      d.getDate() === n.getDate()
+    );
+  }
+
+  /** Real board TDR badges only on today's 2 Best-line books (fav Best + dog Best). */
+  function paintBlEndTdrBadges(gameEl, codes, bookCells, names, favIdx, dogIdx) {
+    if (!DISPLAY_TDR_BL_ENDS || DISPLAY_TDR_RANKS || !gameEl) return;
+    if (!isBoardGameToday(gameEl)) {
+      const ranked = gameEl.querySelectorAll(':scope > .cell.cBook .px[data-pc-rank]');
+      for (let i = 0; i < ranked.length; i++) hidePriceRankAttrs(ranked[i]);
+      return;
+    }
+    const show = new Set();
+    if (favIdx != null && dogIdx != null) {
+      const leads = [
+        bestSideLeadBook(gameEl, favIdx, codes, names),
+        bestSideLeadBook(gameEl, dogIdx, codes, names),
+      ];
+      for (let c = 0; c < leads.length; c++) {
+        const lead = leads[c];
+        if (!lead || !lead.code) continue;
+        const cell = bookCellForBlCode(codes, bookCells, names, lead.code);
+        if (!cell) continue;
+        const els = tradCellSideEls(cell);
+        for (let i = 0; i < els.length; i++) {
+          if (els[i]) show.add(els[i]);
+        }
+      }
+    }
+    show.forEach((el) => paintPriceRankFromCache(el));
+    gameEl.querySelectorAll(':scope > .cell.cBook .px[data-pc-rank]').forEach((px) => {
+      if (!show.has(px)) hidePriceRankAttrs(px);
+    });
+  }
+
   function attachPriceRankBadge(el, rank, y, role, joint) {
-    if (!el || !rank || !y) return;
-    const existing = el.querySelector(':scope > .pc-price-rank');
-    if (existing) existing.remove();
-    const badge = document.createElement('span');
-    const tier = priceRankTierClass(rank);
-    badge.className =
-      'pc-price-rank' +
-      (role === 'dog' ? ' role-dog' : '') +
-      (role === 'draw' ? ' role-draw' : '') +
-      (tier ? ' ' + tier : '') +
-      (joint ? ' is-joint' : '');
+    if (!el || !rank || !y) return null;
+    const leftover = el.querySelector(':scope > .pc-price-rank');
+    if (leftover) leftover.remove();
+    const tier = priceRankTierClass(rank, y);
     const label = (joint ? 'J' : '') + rank + '/' + y;
-    badge.textContent = label;
-    badge.title =
-      (joint ? 'joint ' : '') + role + ' ' + rank + ' of ' + y;
-    el.appendChild(badge);
+    const rt = role === 'dog' ? 'dog' : role === 'draw' ? 'draw' : 'fav';
+    const tt =
+      tier === 'tier-best' ? 'best' : tier === 'tier-green' ? 'green' : tier === 'tier-deep' ? 'deep' : '';
+    tdrInfoByPx.set(el, {
+      rank: rank,
+      y: y,
+      joint: !!joint,
+      label: label,
+      role: rt,
+    });
+    // Full board paint, or memory-only (BL-ends paints #1/last in a second pass).
+    if (!DISPLAY_TDR_RANKS) {
+      hidePriceRankAttrs(el);
+      return el;
+    }
+    if (el.getAttribute('data-pc-rank') !== label) el.setAttribute('data-pc-rank', label);
+    if (el.getAttribute('data-pc-rt') !== rt) el.setAttribute('data-pc-rt', rt);
+    if (tt) {
+      if (el.getAttribute('data-pc-tt') !== tt) el.setAttribute('data-pc-tt', tt);
+    } else if (el.hasAttribute('data-pc-tt')) el.removeAttribute('data-pc-tt');
+    if (joint) {
+      if (el.getAttribute('data-pc-jt') !== '1') el.setAttribute('data-pc-jt', '1');
+    } else if (el.hasAttribute('data-pc-jt')) el.removeAttribute('data-pc-jt');
+    return el;
   }
 
   function clearTdrMarks() {
+    document.querySelectorAll('.px[data-pc-rank]').forEach(clearPriceRankOnPx);
     document.querySelectorAll('.pc-price-rank').forEach((n) => n.remove());
+    document.querySelectorAll('.gRow.gGame[data-pc-tdr]').forEach((el) => {
+      el.removeAttribute('data-pc-tdr');
+    });
     document.querySelectorAll('.pc-otc-badge').forEach((n) => n.remove());
+    document.querySelectorAll('.team[data-pc-otc]').forEach((el) => {
+      el.removeAttribute('data-pc-otc');
+    });
+    document.querySelectorAll('.px[data-pc-pingap], a.tName[data-pc-pingap], .tName[data-pc-pingap]').forEach((el) => {
+      el.removeAttribute('data-pc-pingap');
+      el.removeAttribute('data-pc-pg');
+    });
     // Keep ZCode chips in place across paints — update in markZcodeRatioChips (no flicker)
     document.querySelectorAll('.team.pc-otc-fav, .team.pc-otc-dog').forEach((el) => {
       el.classList.remove('pc-otc-fav', 'pc-otc-dog');
@@ -1880,7 +2591,16 @@
         delete name.dataset.pcOtcTitle;
       }
     });
-    tradBoardGames().forEach((gameEl) => restoreCircaTakeOnGame(gameEl));
+    document.querySelectorAll('.cell.cFair.pc-circa-take').forEach((cell) => {
+      const gameEl = cell.closest('.gRow.gGame');
+      restoreCircaTakeOnGame(gameEl || cell.parentElement);
+    });
+    document.querySelectorAll('.gRow.gGame.pc-hold-tight, .gRow.gGame.pc-hold-arb').forEach((el) => {
+      el.classList.remove('pc-hold-tight', 'pc-hold-arb');
+    });
+    document.querySelectorAll('.cell.cHold.pc-hold-tight, .cell.cHold.pc-hold-arb').forEach((el) => {
+      el.classList.remove('pc-hold-tight', 'pc-hold-arb');
+    });
   }
 
   function fmtAmShort(a) {
@@ -1955,23 +2675,33 @@
     return n;
   }
 
-  /** TDR badge on a px: { rank, joint, label } or null. */
+  /** TDR badge on a px: { rank, y, joint, label } or null. Prefers in-memory cache. */
   function pxTdrInfo(pxEl) {
     if (!pxEl || pxEl.classList.contains('none') || pxEl.disabled) return null;
-    const badge = pxEl.querySelector(':scope > .pc-price-rank');
-    if (badge) {
-      const m = String(badge.textContent || '').match(/^J?(\d+)\s*\/\s*(\d+)/i);
+    const cached = tdrInfoByPx.get(pxEl);
+    if (cached && cached.rank) {
+      return {
+        rank: cached.rank,
+        y: cached.y || null,
+        joint: !!cached.joint,
+        label: cached.label || String(cached.rank),
+      };
+    }
+    const label = String(pxEl.getAttribute('data-pc-rank') || '').trim();
+    if (label) {
+      const m = label.match(/^J?(\d+)\s*\/\s*(\d+)/i);
       if (m) {
         return {
           rank: parseInt(m[1], 10),
-          joint: badge.classList.contains('is-joint') || /^J/i.test(badge.textContent || ''),
-          label: String(badge.textContent || '').trim(),
+          y: parseInt(m[2], 10),
+          joint: pxEl.getAttribute('data-pc-jt') === '1' || /^J/i.test(label),
+          label: label,
         };
       }
     }
-    // Site “best” class before badges land
-    if (pxEl.classList.contains('best') || pxEl.querySelector(':scope > .pc-price-rank.tier-best')) {
-      return { rank: 1, joint: false, label: 'best' };
+    // Site “best” class before ranks land
+    if (pxEl.classList.contains('best') || pxEl.getAttribute('data-pc-tt') === 'best') {
+      return { rank: 1, y: null, joint: false, label: 'best' };
     }
     return null;
   }
@@ -1981,7 +2711,10 @@
     const fairCell = tradFairCell(gameEl);
     if (!fairCell) return;
     fairCell.querySelectorAll(':scope > .pc-circa-take-msg').forEach((n) => n.remove());
-    if (fairCell.classList.contains('pc-circa-take')) {
+    fairCell.removeAttribute('data-pc-take');
+    fairCell.removeAttribute('data-pc-take-role');
+    delete gameEl.dataset.pcTakeFp;
+    if (fairCell.classList.contains('pc-circa-take') || fairCell.hasAttribute('data-pc-take')) {
       if (fairCell.dataset.pcFairTitle != null) {
         if (fairCell.dataset.pcFairTitle) {
           fairCell.setAttribute('title', fairCell.dataset.pcFairTitle);
@@ -1995,13 +2728,13 @@
   }
 
   /** Inset glow when Vertex is in the Best column (any number). */
-  function markVertexBestGlow(gameEl) {
+  function markVertexBestGlow(gameEl, nOut, favIdx) {
     if (!gameEl) return;
     const fairCell = tradFairCell(gameEl);
     if (!fairCell) return;
     fairCell.classList.remove('pc-vertex-best', 'role-fav', 'role-dog');
-    const nOut = tradOutcomeCount(gameEl);
-    const favIdx = tradFavSideIndex(gameEl);
+    if (nOut == null) nOut = tradOutcomeCount(gameEl);
+    if (favIdx == null) favIdx = tradFavSideIndex(gameEl, nOut);
     if (favIdx == null) return;
     const homeIdx = nOut >= 3 ? 2 : 1;
     const dogIdx = favIdx === 0 ? homeIdx : 0;
@@ -2194,17 +2927,27 @@
 
   /** Per-game .lg first (All boards mix NBA+NCAAB); else route sport. */
   function takeSportKeyForGame(gameEl) {
-    const league = gameLeagueLabel(gameEl);
+    const league = gameLeagueLabel(gameEl) || gameTourLeagueLabel(gameEl);
+    const teams = gameTeamNames(gameEl);
     if (league) {
-      const fromGame = sportKeyFromSnap({ league: league, sport: '' });
+      const fromGame = sportKeyFromSnap({ league: league, sport: '', teams: teams });
       if (fromGame) return fromGame;
     }
-    const fromRoute = fourCToZcodeSport();
-    if (fromRoute) return fromRoute;
     const info = routeInfo();
+    const fromTeams = sportKeyFromSnap({
+      league: league || '',
+      sport: (info && (info.sport || info.board)) || '',
+      teams: teams,
+    });
+    if (fromTeams === 'NCAAB') return 'NCAAB';
+    const fromRoute = fourCToZcodeSport();
+    if (fromRoute && fromRoute !== 'NBA') return fromRoute;
+    if (fromTeams) return fromTeams;
+    if (fromRoute) return fromRoute;
     return sportKeyFromSnap({
       league: league || '',
       sport: (info && (info.sport || info.board)) || '',
+      teams: teams,
     });
   }
 
@@ -2261,46 +3004,33 @@
   }
 
   /**
-   * TDR lean: fav | dog | null.
-   * Hard thresholds (old Vertex path), then soft: fade the sharper side
-   * (lower rank → lean the other side).
+   * TDR vote: { lean, gap } or null.
+   * Follow the sharper side; abstain if either side missing or gap < TAKE_MIN_TDR_GAP.
    */
   function tdrLeanFromSides(favTdr, dogTdr) {
-    const dogRank = dogTdr && dogTdr.rank ? dogTdr.rank : null;
-    const favRank = favTdr && favTdr.rank ? favTdr.rank : null;
-    const dogSharp = dogRank != null && dogRank <= 4;
-    const favGe5 = favRank != null && favRank >= 5;
-    const favLe5 = favRank != null && favRank <= 5;
-    const favGe11 = favRank != null && favRank >= 11;
-    if (dogSharp && favGe5) return 'fav';
-    if (favLe5 && !dogSharp) return 'dog';
-    if (favGe11) return 'fav';
-    // Soft: lean away from the sharper TDR so every book can vote
-    if (favRank != null && dogRank != null) {
-      if (dogRank < favRank) return 'fav';
-      if (favRank < dogRank) return 'dog';
-    } else if (dogRank != null && favRank == null) {
-      return dogRank <= 4 ? 'fav' : 'dog';
-    } else if (favRank != null && dogRank == null) {
-      return favRank <= 5 ? 'dog' : 'fav';
-    }
+    const dogRank =
+      dogTdr && dogTdr.rank != null && Number.isFinite(dogTdr.rank) ? dogTdr.rank : null;
+    const favRank =
+      favTdr && favTdr.rank != null && Number.isFinite(favTdr.rank) ? favTdr.rank : null;
+    if (favRank == null || dogRank == null) return null;
+    const gap = Math.abs(favRank - dogRank);
+    if (gap < TAKE_MIN_TDR_GAP) return null;
+    if (favRank < dogRank) return { lean: 'fav', gap: gap };
+    if (dogRank < favRank) return { lean: 'dog', gap: gap };
     return null;
   }
 
-  function flipLean(lean) {
-    if (lean === 'fav') return 'dog';
-    if (lean === 'dog') return 'fav';
-    return null;
-  }
-
-  function applyFollowFade(lean, follow) {
-    if (!lean) return null;
-    return follow ? lean : flipLean(lean);
-  }
-
-  function bestColVoteWeight(rankIndex, n) {
-    if (n <= 1) return 1;
-    return 0.5 + 0.5 * (1 - rankIndex / (n - 1));
+  /**
+   * Map raw winning share s∈(0.5,1] → agree%∈(50,100].
+   * edge = 2s−1 (0 = coin flip, 1 = unanimous). sqrt so clear majorities
+   * read high without needing every soft book to pile on.
+   */
+  function takeAgreeFromShare(winShare) {
+    const s = Number(winShare);
+    if (!Number.isFinite(s) || s <= 0.5) return 50;
+    if (s >= 1) return 100;
+    const edge = Math.max(0, Math.min(1, 2 * s - 1));
+    return Math.min(100, Math.max(50, Math.round(50 + 50 * Math.sqrt(edge))));
   }
 
   function blBookDisplayName(standings, code, fallback) {
@@ -2310,211 +3040,223 @@
     return fallback || code || '?';
   }
 
+  /** Board cell for a Book League code (exact, then fuzzy name/code). */
+  function bookCellForBlCode(codes, bookCells, names, blCode) {
+    if (!blCode) return null;
+    let cell = bookCellByCode(codes, bookCells, blCode, null);
+    if (cell) return cell;
+    const resolved = resolveBookCode(blCode, codes, names);
+    if (resolved) {
+      cell = bookCellByCode(codes, bookCells, resolved, null);
+      if (cell) return cell;
+    }
+    const compact = String(blCode).replace(/[^a-z0-9]/gi, '');
+    if (compact.length >= 3) {
+      try {
+        return bookCellByCode(codes, bookCells, null, new RegExp(compact, 'i'));
+      } catch (_) {}
+    }
+    return null;
+  }
+
   /**
-   * My Line Take from Book League + Best column (every game gets a suggestion):
-   * 1) Best BL book TDRs → follow lean
-   * 2) Worst BL book TDRs → fade lean
-   * 3–4) Best-col: top-half BL books FADE their Best side; bottom-half FOLLOW
-   *    (trusted book Best on dog → lean FAV; soft book Best on dog → lean DOG)
-   * agree% = winning side's share of vote weight (not a win probability).
+   * Last-resort side when no BL book has a two-sided TDR lean:
+   * fade the better sport-BL Best-line book (Ducks-style).
+   */
+  function takeFromBestLineFallback(gameEl, standings, codes, bookCells, names, favIdx, dogIdx) {
+    if (!gameEl || !standings) return null;
+    const bestFav = bestSideLeadBook(gameEl, favIdx, codes, names);
+    const bestDog = bestSideLeadBook(gameEl, dogIdx, codes, names);
+    if (
+      !bestFav ||
+      !bestDog ||
+      !bestFav.code ||
+      !bestDog.code ||
+      bestFav.code === bestDog.code
+    ) {
+      return null;
+    }
+    const favBlIdx = standings.rankIndexByCode[bestFav.code];
+    const dogBlIdx = standings.rankIndexByCode[bestDog.code];
+    if (favBlIdx == null || dogBlIdx == null || favBlIdx === dogBlIdx) return null;
+    // Better BL → fade its Best side.
+    return {
+      role: favBlIdx < dogBlIdx ? 'dog' : 'fav',
+      agreePct: 50,
+      voters: 0,
+    };
+  }
+
+  /**
+   * Weighted sport Book League vote — every priced game gets a side.
+   * weight = (n − rankIndex)² × TDR gap → top BL books dominate soft noise.
+   * agree% from vote margin (sqrt edge), not raw 51/49 share.
+   * Exact weight tie → follow best-ranked voter; no voters → Best-line fallback.
+   */
+  function takeFromWeightedBookLeague(
+    gameEl,
+    standings,
+    codes,
+    bookCells,
+    names,
+    favIdx,
+    dogIdx
+  ) {
+    if (!standings || !standings.rows || !standings.rows.length) return null;
+    const n = standings.rows.length;
+    let favW = 0;
+    let dogW = 0;
+    let voters = 0;
+    let topVoterLean = null; // best BL rank that cast a vote
+    for (let i = 0; i < n; i++) {
+      const row = standings.rows[i];
+      if (!row || !row.code) continue;
+      const cell = bookCellForBlCode(codes, bookCells, names, row.code);
+      if (!cell) continue;
+      const vote = tdrLeanFromSides(pxSideTdr(cell, favIdx), pxSideTdr(cell, dogIdx));
+      if (!vote || !vote.lean) continue;
+      if (topVoterLean == null) topVoterLean = vote.lean;
+      const blW = Math.max(1, n - i);
+      const w = blW * blW * vote.gap;
+      if (vote.lean === 'fav') favW += w;
+      else if (vote.lean === 'dog') dogW += w;
+      else continue;
+      voters += 1;
+    }
+    if (!voters || !(favW + dogW)) {
+      return takeFromBestLineFallback(
+        gameEl,
+        standings,
+        codes,
+        bookCells,
+        names,
+        favIdx,
+        dogIdx
+      );
+    }
+    if (favW === dogW) {
+      return {
+        role: topVoterLean || 'fav',
+        agreePct: 50,
+        voters: voters,
+      };
+    }
+    const role = favW > dogW ? 'fav' : 'dog';
+    const share = Math.max(favW, dogW) / (favW + dogW);
+    return {
+      role: role,
+      agreePct: takeAgreeFromShare(share),
+      voters: voters,
+    };
+  }
+
+  /**
+   * My Line Take from every sport Book League book, weighted by BL rank.
    * Neon green = FAV, neon orange = DOG.
    */
-  function applyCircaTakeToMyLine(gameEl, codes, bookCells, nOut, favIdx) {
-    restoreCircaTakeOnGame(gameEl);
+  function takeTdrLabel(cell, side) {
+    const t = cell && pxSideTdr(cell, side);
+    return t && t.label ? t.label : '';
+  }
+
+  function takeCheapKey(gameEl, codes, bookCells, names, standings, favIdx, dogIdx) {
+    let k = String(favIdx);
+    if (!standings || !standings.rows) return k;
+    k += '|' + (standings.updatedAt || '') + '|' + (standings.n || 0);
+    for (let i = 0; i < standings.rows.length; i++) {
+      const row = standings.rows[i];
+      if (!row || !row.code) continue;
+      const cell = bookCellForBlCode(codes, bookCells, names, row.code);
+      if (!cell) continue;
+      k +=
+        '|' +
+        row.code +
+        ':' +
+        takeTdrLabel(cell, favIdx) +
+        '/' +
+        takeTdrLabel(cell, dogIdx);
+    }
+    return k;
+  }
+
+  function applyCircaTakeToMyLine(gameEl, codes, bookCells, nOut, favIdx, names) {
     const fairCell = tradFairCell(gameEl);
     if (!fairCell) return;
-    if (favIdx == null) return;
+    if (favIdx == null) {
+      restoreCircaTakeOnGame(gameEl);
+      return;
+    }
 
     const teams = tradTeamNames(gameEl);
-    if (teams.length < 2) return;
+    if (teams.length < 2) {
+      restoreCircaTakeOnGame(gameEl);
+      return;
+    }
 
     const homeIdx = nOut >= 3 ? 2 : 1;
     const dogIdx = favIdx === 0 ? homeIdx : 0;
-    const names = tradBookHeaderNames();
+    if (!names) names = tradBookHeaderNames();
     const sportKey = takeSportKeyForGame(gameEl);
     const standings = aggregateBookLeagueStandings(sportKey);
-    const votes = [];
-
-    function pushVote(src, lean, weight, detail) {
-      if (!lean || !(weight > 0)) return;
-      votes.push({ src: src, lean: lean, weight: weight, detail: detail || '' });
+    const skipKey = takeCheapKey(gameEl, codes, bookCells, names, standings, favIdx, dogIdx);
+    // Skip when fingerprint matches — including intentional blank.
+    if (gameEl.dataset.pcTakeFp === skipKey) {
+      return;
     }
 
-    if (standings) {
-      // 1) Best BL book — follow TDR lean
-      const bestCell = bookCellByCode(codes, bookCells, standings.bestCode, null);
-      if (bestCell) {
-        const lean = tdrLeanFromSides(pxSideTdr(bestCell, favIdx), pxSideTdr(bestCell, dogIdx));
-        const vote = applyFollowFade(lean, true);
-        const nm = blBookDisplayName(standings, standings.bestCode);
-        const favL = pxSideTdr(bestCell, favIdx);
-        const dogL = pxSideTdr(bestCell, dogIdx);
-        pushVote(
-          'bl-best',
-          vote,
-          1,
-          'BL best ' +
-            nm +
-            ' follow ' +
-            (lean || '?') +
-            (dogL && dogL.label ? ' dog ' + dogL.label : '') +
-            (favL && favL.label ? ' (fav ' + favL.label + ')' : '')
-        );
-      }
-
-      // 2) Worst BL book — fade TDR lean
-      const worstCell = bookCellByCode(codes, bookCells, standings.worstCode, null);
-      if (worstCell && standings.worstCode !== standings.bestCode) {
-        const lean = tdrLeanFromSides(pxSideTdr(worstCell, favIdx), pxSideTdr(worstCell, dogIdx));
-        const vote = applyFollowFade(lean, false);
-        const nm = blBookDisplayName(standings, standings.worstCode);
-        const favL = pxSideTdr(worstCell, favIdx);
-        const dogL = pxSideTdr(worstCell, dogIdx);
-        pushVote(
-          'bl-worst',
-          vote,
-          1,
-          'BL worst ' +
-            nm +
-            ' fade ' +
-            (lean || '?') +
-            (favL && favL.label ? ' fav ' + favL.label : '') +
-            (dogL && dogL.label ? ' (dog ' + dogL.label + ')' : '')
-        );
-      }
+    function noTake() {
+      restoreCircaTakeOnGame(gameEl);
+      gameEl.dataset.pcTakeFp = skipKey;
     }
 
-    // 3–4) Best-col: top-half FADE Best side; bottom-half FOLLOW (unranked → fade)
-    const bestFav = bestSideLeadBook(gameEl, favIdx, codes, names);
-    const bestDog = bestSideLeadBook(gameEl, dogIdx, codes, names);
-    const sameBestBook =
-      bestFav &&
-      bestDog &&
-      bestFav.code &&
-      bestDog.code &&
-      bestFav.code === bestDog.code;
-
-    function addBestColVote(sideRole, lead) {
-      if (!lead || sameBestBook) return;
-      const code = lead.code || null;
-      // Default fade Best (same spirit as old Vertex Best-col)
-      let follow = false;
-      let w = 0.75;
-      let rankLabel = 'unranked';
-      if (standings && code && standings.rankIndexByCode[code] != null) {
-        const idx = standings.rankIndexByCode[code];
-        const n = standings.n;
-        const bottomHalf = idx >= n / 2;
-        follow = bottomHalf; // top books fade Best; bottom books follow Best
-        w = bestColVoteWeight(idx, n);
-        rankLabel = 'rank ' + (idx + 1);
-      }
-      const rawLean = sideRole;
-      const vote = applyFollowFade(rawLean, follow);
-      const nm =
-        (standings && code && blBookDisplayName(standings, code, lead.book)) ||
-        lead.book ||
-        code ||
-        '?';
-      pushVote(
-        'best-col-' + sideRole,
-        vote,
-        w,
-        'Best ' + nm + ' (' + rankLabel + ') ' + (follow ? 'follow' : 'fade') + ' ' + rawLean
-      );
+    const verdict = takeFromWeightedBookLeague(
+      gameEl,
+      standings,
+      codes,
+      bookCells,
+      names,
+      favIdx,
+      dogIdx
+    );
+    if (!verdict || !verdict.role) {
+      noTake();
+      return;
     }
 
-    addBestColVote('fav', bestFav);
-    addBestColVote('dog', bestDog);
-
-    // Fallback: fade Best-col so every priced game still gets a Take
-    if (!votes.length) {
-      if (bestDog && !(bestFav && bestDog.book === bestFav.book)) {
-        pushVote('fallback-best-dog', 'fav', 1, 'Fallback fade Best on dog (' + bestDog.book + ')');
-      }
-      if (bestFav && !(bestDog && bestFav.book === bestDog.book)) {
-        pushVote('fallback-best-fav', 'dog', 1, 'Fallback fade Best on fav (' + bestFav.book + ')');
-      }
-    }
-
-    // Last resort: soft TDR from Pinnacle / first book with both sides
-    if (!votes.length) {
-      const pinCell =
-        pinnacleBookCell(gameEl, codes, bookCells) ||
-        (bookCells && bookCells[0]) ||
-        null;
-      if (pinCell) {
-        const lean = tdrLeanFromSides(pxSideTdr(pinCell, favIdx), pxSideTdr(pinCell, dogIdx));
-        if (lean) pushVote('fallback-tdr', lean, 1, 'Fallback board TDR → ' + lean);
-      }
-    }
-
-    // Absolute last resort: Take FAV
-    if (!votes.length) {
-      pushVote('fallback-default', 'fav', 1, 'Fallback default FAV');
-    }
-
-    let favW = 0;
-    let dogW = 0;
-    for (let i = 0; i < votes.length; i++) {
-      if (votes[i].lean === 'fav') favW += votes[i].weight;
-      else if (votes[i].lean === 'dog') dogW += votes[i].weight;
-    }
-    const total = favW + dogW;
-    if (!(total > 0)) return;
-
-    let role;
-    let agreePct;
-    if (favW === dogW) {
-      role = 'fav';
-      agreePct = 50;
-    } else {
-      role = favW > dogW ? 'fav' : 'dog';
-      // Winning side's share of vote weight (clearer than margin)
-      const winW = role === 'fav' ? favW : dogW;
-      agreePct = Math.round((100 * winW) / total);
-    }
-    if (agreePct < TAKE_MIN_CONFIDENCE) return;
-
+    const role = verdict.role;
+    const agreePct = verdict.agreePct;
     const takeSideIdx = role === 'fav' ? favIdx : dogIdx;
     const takeTeamIdx = outcomeToTeamIndex(takeSideIdx, nOut);
-    if (takeTeamIdx == null) return;
+    if (takeTeamIdx == null) {
+      restoreCircaTakeOnGame(gameEl);
+      return;
+    }
     const takeFull = teams[takeTeamIdx];
     const takeShort = teamCallSign(takeFull);
-    if (!takeShort) return;
+    if (!takeShort) {
+      restoreCircaTakeOnGame(gameEl);
+      return;
+    }
 
-    const whyParts = votes.map((v) => v.detail).filter(Boolean);
     const roleLabel = role === 'fav' ? 'FAV' : 'DOG';
     const takeLabel = takeFull || takeShort;
-    const agreeLabel = 'agree ' + agreePct + '%';
-    const splitNote =
-      'votes fav ' +
-      Math.round(favW * 100) / 100 +
-      ' / dog ' +
-      Math.round(dogW * 100) / 100;
-
+    const text = 'Take ' + takeLabel + ' ' + roleLabel + ' · agree ' + agreePct + '%';
+    const takeRole = role === 'fav' ? 'fav' : 'dog';
+    if (
+      fairCell.getAttribute('data-pc-take') === text &&
+      fairCell.getAttribute('data-pc-take-role') === takeRole
+    ) {
+      gameEl.dataset.pcTakeFp = skipKey;
+      return;
+    }
     if (fairCell.dataset.pcFairTitle == null) {
       fairCell.dataset.pcFairTitle = fairCell.getAttribute('title') || '';
     }
     fairCell.classList.add('pc-circa-take');
-    let msg = fairCell.querySelector(':scope > .pc-circa-take-msg');
-    if (!msg) {
-      msg = document.createElement('span');
-      fairCell.appendChild(msg);
-    }
-    msg.className = 'pc-circa-take-msg role-' + (role === 'fav' ? 'fav' : 'dog');
-    msg.textContent = 'Take ' + takeLabel + ' ' + roleLabel + ' · ' + agreeLabel;
-    fairCell.title =
-      whyParts.join(' · ') +
-      ' → Take ' +
-      takeLabel +
-      ' ' +
-      roleLabel +
-      ' · ' +
-      agreeLabel +
-      ' (' +
-      splitNote +
-      ')';
+    fairCell.setAttribute('data-pc-take', text);
+    fairCell.setAttribute('data-pc-take-role', takeRole);
+    fairCell.title = text;
+    gameEl.dataset.pcTakeFp = skipKey;
   }
 
   /** Map outcome index → team row index (away=0, home=1). */
@@ -2570,12 +3312,15 @@
       gameEl.querySelector(':scope > .cell.cOpen') || gameEl.querySelector('.cell.cOpen');
     const pinCell = pinnacleBookCell(gameEl, codes, bookCells);
     if (!openCell || openCell.classList.contains('none') || !pinCell) return empty;
-    const favIdx = tradFavSideIndex(gameEl);
+    const nOut = tradOutcomeCount(gameEl);
+    const favIdx = tradFavSideIndex(gameEl, nOut);
     if (favIdx == null) return empty;
-    const openAms = tradCellSidePrices(openCell);
-    const curAms = tradCellSidePrices(pinCell);
-    const openLines = tradCellSideLines(openCell);
-    const curLines = tradCellSideLines(pinCell);
+    const openSides = tradCellSides(openCell);
+    const curSides = tradCellSides(pinCell);
+    const openAms = openSides.prices;
+    const curAms = curSides.prices;
+    const openLines = openSides.lines;
+    const curLines = curSides.lines;
     const favors = otcFavorsRole(openAms, curAms, openLines, curLines, favIdx);
     if (favors !== 'fav' && favors !== 'dog') return empty;
 
@@ -2624,7 +3369,23 @@
    * orange O->C left of dog when it favors dog. Nothing if no move.
    * Spread: fav line heavier/lighter. Moneyline: fav implied % up/down.
    */
+  function clearOtcOnGame(gameEl) {
+    if (!gameEl) return;
+    gameEl.querySelectorAll('.team.pc-otc-fav, .team.pc-otc-dog, .team[data-pc-otc]').forEach((el) => {
+      el.classList.remove('pc-otc-fav', 'pc-otc-dog');
+      el.removeAttribute('data-pc-otc');
+      const name = el.querySelector('a.tName, .tName');
+      if (name && name.dataset.pcOtcTitle != null) {
+        if (name.dataset.pcOtcTitle) name.setAttribute('title', name.dataset.pcOtcTitle);
+        else name.removeAttribute('title');
+        delete name.dataset.pcOtcTitle;
+      }
+    });
+    gameEl.querySelectorAll('.pc-otc-badge').forEach((n) => n.remove());
+  }
+
   function markOtcTeamHighlights(gameEl, codes, bookCells, favIdx, dogIdx, nOut) {
+    clearOtcOnGame(gameEl);
     if (favIdx == null || dogIdx == null) return;
     const openCell = gameEl.querySelector(':scope > .cell.cOpen');
     const pinCell = pinnacleBookCell(gameEl, codes, bookCells);
@@ -2649,6 +3410,7 @@
     const name = teamEl.querySelector('a.tName, .tName');
 
     teamEl.classList.add(role === 'fav' ? 'pc-otc-fav' : 'pc-otc-dog');
+    teamEl.setAttribute('data-pc-otc', role);
     const tip =
       (role === 'fav' ? 'O->C → FAV' : 'O->C → DOG') +
       ' · open ' +
@@ -2666,43 +3428,206 @@
       }
       name.title = tip;
     }
+    teamEl.title = tip;
+  }
 
-    // Left of team icon/logo (first meaningful child), not between icon and name
-    const anchor =
-      teamEl.querySelector(
-        ':scope > img, :scope > .logo, :scope > .ico, :scope > .badge, :scope > i, :scope > svg'
-      ) ||
-      teamEl.firstElementChild;
-    let badge = teamEl.querySelector(':scope > .pc-otc-badge');
-    if (!badge) {
-      badge = document.createElement('span');
-      if (anchor && anchor.parentNode === teamEl) {
-        teamEl.insertBefore(badge, anchor);
-      } else {
-        teamEl.insertBefore(badge, teamEl.firstChild);
-      }
-    } else if (anchor && badge !== anchor && badge.nextSibling !== anchor) {
-      teamEl.insertBefore(badge, anchor);
+  function clearPinGapOnGame(gameEl) {
+    if (!gameEl) return;
+    gameEl.querySelectorAll('.px[data-pc-pingap], a.tName[data-pc-pingap], .tName[data-pc-pingap]').forEach((el) => {
+      el.removeAttribute('data-pc-pingap');
+      el.removeAttribute('data-pc-pg');
+    });
+  }
+
+  /** Half-point = 24¢ (same as Market Sensitivity Tracker: 48¢ per full point). */
+  const SPREAD_CENTS_PER_POINT = 48;
+
+  function fmtLineAmShort(line, am) {
+    const juice = fmtAmShort(am);
+    if (line == null || !Number.isFinite(line)) return juice;
+    const ls = line > 0 ? '+' + line : String(line);
+    return ls + ' ' + juice;
+  }
+
+  /**
+   * Per side: |Best − Pinny| in ¢. On spreads, juice ¢ + line move (24¢ per ½).
+   * Badge = |gapA − gapB| on the larger-gap side.
+   * ML: Mammoth −132 vs Pinny −139 (7¢), Leafs +129 vs +126 (3¢) → 4¢ on Mammoth.
+   * Spread: +4 −105 vs +4.5 −105 → 24¢ (½ pt, same juice).
+   */
+  function markPinBestGap(gameEl, codes, bookCells, nOut) {
+    clearPinGapOnGame(gameEl);
+    if (!gameEl || !codes || !bookCells) return;
+    const pinCell = pinnacleBookCell(gameEl, codes, bookCells);
+    const bestCell =
+      gameEl.querySelector(':scope > .cell.cBest') || gameEl.querySelector('.cell.cBest');
+    if (!pinCell || !bestCell || pinCell.classList.contains('none') || bestCell.classList.contains('none')) {
+      return;
     }
-    badge.className = 'pc-otc-badge role-' + role;
-    badge.textContent = 'O->C';
-    badge.title = tip;
+    if (nOut == null) nOut = tradOutcomeCount(gameEl);
+    const favIdx = tradFavSideIndex(gameEl, nOut);
+    const pinPrices = tradCellSidePrices(pinCell);
+    const bestPrices = tradCellSidePrices(bestCell);
+    const pinLines = tradCellSideLines(pinCell);
+    const bestLines = tradCellSideLines(bestCell);
+    const bestEls = tradCellSideEls(bestCell);
+    const homeIdx = nOut >= 3 ? 2 : 1;
+    const gaps = [];
+    const sideIdxs = [0, homeIdx];
+    for (let i = 0; i < sideIdxs.length; i++) {
+      const idx = sideIdxs[i];
+      const pin = pinPrices[idx];
+      const best = bestPrices[idx];
+      const pinC = americanCentsFromEven(pin);
+      const bestC = americanCentsFromEven(best);
+      if (pinC == null || bestC == null || !bestEls[idx]) continue;
+      const pinLine = pinLines[idx];
+      const bestLine = bestLines[idx];
+      let gap = bestC - pinC;
+      if (
+        pinLine != null &&
+        bestLine != null &&
+        Number.isFinite(pinLine) &&
+        Number.isFinite(bestLine)
+      ) {
+        // Higher algebraic line is better for that side; ½ pt = 24¢.
+        gap += (bestLine - pinLine) * SPREAD_CENTS_PER_POINT;
+      }
+      gaps.push({
+        sideIdx: idx,
+        el: bestEls[idx],
+        gap: Math.abs(gap),
+        pin: pin,
+        best: best,
+        pinLine: pinLine,
+        bestLine: bestLine,
+      });
+    }
+    if (gaps.length < 2) return;
+    const a = gaps[0];
+    const b = gaps[1];
+    const diff = Math.abs(a.gap - b.gap);
+    if (!Number.isFinite(diff) || diff < 0.5) return;
+    const host = a.gap > b.gap ? a : b.gap > a.gap ? b : null;
+    if (!host || !host.el) return;
+    const txt = Math.round(diff) + '¢';
+    const role = favIdx != null && host.sideIdx === favIdx ? 'fav' : 'dog';
+    if (host.el.getAttribute('data-pc-pingap') !== txt) host.el.setAttribute('data-pc-pingap', txt);
+    if (host.el.getAttribute('data-pc-pg') !== role) host.el.setAttribute('data-pc-pg', role);
+    const other = host === a ? b : a;
+    const tip =
+      'Best vs Pinnacle · ' +
+      txt +
+      ' (|' +
+      Math.round(host.gap) +
+      '−' +
+      Math.round(other.gap) +
+      '|¢) · on ' +
+      role +
+      ' · this ' +
+      fmtLineAmShort(host.bestLine, host.best) +
+      ' vs Pinny ' +
+      fmtLineAmShort(host.pinLine, host.pin) +
+      ' · other ' +
+      fmtLineAmShort(other.bestLine, other.best) +
+      ' vs Pinny ' +
+      fmtLineAmShort(other.pinLine, other.pin);
+    if (host.el.title !== tip) host.el.title = tip;
+  }
+
+  function gamePriceFp(gameEl) {
+    if (!gameEl) return '';
+    let s = '';
+    const kids = gameEl.children;
+    for (let i = 0; i < kids.length; i++) {
+      const cell = kids[i];
+      if (!cell.classList) continue;
+      if (
+        !cell.classList.contains('cBook') &&
+        !cell.classList.contains('cOpen') &&
+        !cell.classList.contains('cBest')
+      ) {
+        continue;
+      }
+      const pxs = cell.children;
+      for (let j = 0; j < pxs.length; j++) {
+        const px = pxs[j];
+        if (!px.classList || !px.classList.contains('px')) continue;
+        const bits = px.children;
+        let saw = false;
+        for (let k = 0; k < bits.length; k++) {
+          const b = bits[k];
+          if (!b.classList) continue;
+          if (b.classList.contains('pr') || b.classList.contains('num')) {
+            s += b.textContent || '';
+            saw = true;
+          }
+        }
+        if (!saw) {
+          const al = px.getAttribute('aria-label');
+          if (al) s += al.length > 36 ? al.slice(0, 36) : al;
+        }
+      }
+    }
+    return s;
   }
 
   function markPriceRanksOnTradBoard() {
     const codes = tradBookHeaderCodes();
     if (!codes.length) return;
+    const names = tradBookHeaderNames();
 
-    tradBoardGames().forEach((gameEl) => {
+    // One-shot: peel leftover visible TDR badges when nothing should paint.
+    if (!tdrBadgesVisible() && !strippedVisibleTdrs) {
+      strippedVisibleTdrs = true;
+      document.querySelectorAll('.px[data-pc-rank]').forEach((px) => {
+        hidePriceRankAttrs(px);
+      });
+      document.querySelectorAll('.pc-price-rank').forEach((n) => n.remove());
+    }
+
+    const games = tradBoardGames();
+    const runAll = dirtyAllGames || dirtyGames.size === 0;
+    games.forEach((gameEl) => {
+      if (!runAll && !dirtyGames.has(gameEl)) return;
       const nOut = tradOutcomeCount(gameEl);
-      const favIdx = tradFavSideIndex(gameEl);
       const bookCells = Array.from(gameEl.querySelectorAll(':scope > .cell.cBook'));
+      const fp = gamePriceFp(gameEl);
+      const ranksReady = gameEl.getAttribute('data-pc-tdr') === '1';
+      let cacheAlive = true;
+      if (!DISPLAY_TDR_RANKS && ranksReady && bookCells[0]) {
+        const sampleEls = tradCellSideEls(bookCells[0]);
+        const sample = sampleEls[0] || sampleEls[1] || null;
+        cacheAlive = !sample || tdrInfoByPx.has(sample);
+      }
+      if (
+        fp &&
+        gameEl.getAttribute('data-pc-odds-fp') === fp &&
+        ranksReady &&
+        cacheAlive &&
+        (DISPLAY_TDR_RANKS
+          ? !!gameEl.querySelector(':scope > .cell.cBook .px[data-pc-rank]')
+          : true)
+      ) {
+        if (DISPLAY_TDR_BL_ENDS && !DISPLAY_TDR_RANKS) {
+          const favCached = tradFavSideIndex(gameEl, nOut);
+          const dogCached =
+            favCached == null ? null : favCached === 0 ? (nOut >= 3 ? 2 : 1) : 0;
+          paintBlEndTdrBadges(gameEl, codes, bookCells, names, favCached, dogCached);
+        }
+        markPinBestGap(gameEl, codes, bookCells, nOut);
+        return;
+      }
+      if (fp) gameEl.setAttribute('data-pc-odds-fp', fp);
+      const favIdx = tradFavSideIndex(gameEl, nOut);
       const n = Math.min(codes.length, bookCells.length);
       if (!n) return;
 
       if (favIdx == null) {
-        applyCircaTakeToMyLine(gameEl, codes, bookCells, nOut, null);
-        markVertexBestGlow(gameEl);
+        gameEl.removeAttribute('data-pc-tdr');
+        applyCircaTakeToMyLine(gameEl, codes, bookCells, nOut, null, names);
+        markVertexBestGlow(gameEl, nOut, favIdx);
+        markPinBestGap(gameEl, codes, bookCells, nOut);
         return;
       }
       const homeIdx = nOut >= 3 ? 2 : 1;
@@ -2714,9 +3639,10 @@
       const drawEntries = [];
       for (let i = 0; i < n; i++) {
         const cell = bookCells[i];
-        const prices = tradCellSidePrices(cell);
-        const lines = tradCellSideLines(cell);
-        const els = tradCellSideEls(cell);
+        const sides = tradCellSides(cell);
+        const prices = sides.prices;
+        const lines = sides.lines;
+        const els = sides.els;
         if (prices[favIdx] != null && els[favIdx]) {
           favEntries.push({
             el: els[favIdx],
@@ -2740,24 +3666,92 @@
         }
       }
 
-      const useImplied = tradGameBothSidesNegative(gameEl);
+      // Row still filling — leave My Line/prices alone until enough books land.
+      if (favEntries.length < RANK_MIN_BOOKS_WHILE_LOADING) {
+        gameEl.removeAttribute('data-pc-odds-fp');
+        gameEl.removeAttribute('data-pc-tdr');
+        return;
+      }
+
+      const useImplied = tradGameBothSidesNegative(gameEl, nOut);
       const favRanks = competitionRankMap(favEntries, useImplied);
       const dogRanks = competitionRankMap(dogEntries, useImplied);
       const drawRanks = competitionRankMap(drawEntries, useImplied);
-      favRanks.forEach((info, el) =>
-        attachPriceRankBadge(el, info.rank, info.y, 'fav', info.joint)
-      );
-      dogRanks.forEach((info, el) =>
-        attachPriceRankBadge(el, info.rank, info.y, 'dog', info.joint)
-      );
-      drawRanks.forEach((info, el) =>
-        attachPriceRankBadge(el, info.rank, info.y, 'draw', info.joint)
-      );
+      const keep = new Set();
+      favRanks.forEach((info, el) => {
+        const b = attachPriceRankBadge(el, info.rank, info.y, 'fav', info.joint);
+        if (b) keep.add(b);
+      });
+      dogRanks.forEach((info, el) => {
+        const b = attachPriceRankBadge(el, info.rank, info.y, 'dog', info.joint);
+        if (b) keep.add(b);
+      });
+      drawRanks.forEach((info, el) => {
+        const b = attachPriceRankBadge(el, info.rank, info.y, 'draw', info.joint);
+        if (b) keep.add(b);
+      });
+      if (DISPLAY_TDR_RANKS) {
+        gameEl.querySelectorAll(':scope > .cell.cBook .px[data-pc-rank]').forEach((px) => {
+          if (!keep.has(px)) clearPriceRankOnPx(px);
+        });
+      } else if (DISPLAY_TDR_BL_ENDS) {
+        paintBlEndTdrBadges(gameEl, codes, bookCells, names, favIdx, dogIdx);
+      }
+      gameEl.setAttribute('data-pc-tdr', '1');
 
       markOtcTeamHighlights(gameEl, codes, bookCells, favIdx, dogIdx, nOut);
-      // After TDR badges so Pin/LV vs Bovada fav gaps are visible
-      applyCircaTakeToMyLine(gameEl, codes, bookCells, nOut, favIdx);
-      markVertexBestGlow(gameEl);
+      applyCircaTakeToMyLine(gameEl, codes, bookCells, nOut, favIdx, names);
+      markVertexBestGlow(gameEl, nOut, favIdx);
+      markPinBestGap(gameEl, codes, bookCells, nOut);
+    });
+    dirtyAllGames = false;
+    dirtyGames.clear();
+  }
+
+  function parseHoldPct(el) {
+    const t = String((el && el.textContent) || '')
+      .replace(/\u2212/g, '-')
+      .replace(/\s+/g, '');
+    if (!t) return null;
+    const m = t.match(/([+\-]?\d+(?:\.\d+)?)%/);
+    if (!m) return null;
+    const n = parseFloat(m[1]);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function setHoldGlowClass(el, hcls) {
+    if (!el) return;
+    const tight = hcls === 'pc-hold-tight';
+    const arb = hcls === 'pc-hold-arb';
+    if (el.classList.contains('pc-hold-tight') !== tight) {
+      el.classList.toggle('pc-hold-tight', tight);
+    }
+    if (el.classList.contains('pc-hold-arb') !== arb) {
+      el.classList.toggle('pc-hold-arb', arb);
+    }
+    if (el.classList.contains('cHold')) {
+      if (arb) el.setAttribute('data-darkreader-ignore', '');
+      else el.removeAttribute('data-darkreader-ignore');
+    }
+  }
+
+  function markHoldGlows() {
+    tradBoardGames().forEach((gameEl) => {
+      const holds = gameEl.querySelectorAll(':scope > .cell.cHold');
+      let cls = '';
+      holds.forEach((hold) => {
+        let hcls = '';
+        if (!hold.classList.contains('none')) {
+          const pct = parseHoldPct(hold);
+          if (pct != null) {
+            if (pct < 0) hcls = 'pc-hold-arb';
+            else if (pct <= 0.5) hcls = 'pc-hold-tight';
+          }
+        }
+        setHoldGlowClass(hold, hcls);
+        if (hcls) cls = hcls;
+      });
+      setHoldGlowClass(gameEl, cls);
     });
   }
 
@@ -2772,7 +3766,7 @@
 
   function boardSportKey() {
     const info = routeInfo();
-    return [info.live ? 'live' : 'pre', info.sport || info.board || '', info.league || ''].join('|');
+    return [info.live ? 'live' : 'pre', info.sport || info.board || ''].join('|');
   }
 
   /** MLB / NHL → moneyline; all other sports → spread. */
@@ -2852,18 +3846,7 @@
   }
 
   function tradBookHeaderNames() {
-    return tradBookHeaderEls().map((el) => {
-      const nameEl = el.querySelector('.hName');
-      const t = nameEl
-        ? String(nameEl.textContent || '')
-            .replace(/\s+/g, ' ')
-            .trim()
-        : '';
-      if (t) return t;
-      const img = el.querySelector('img.logo, img');
-      const alt = img ? String(img.getAttribute('alt') || '').trim() : '';
-      return alt || String(el.getAttribute('data-code') || '').toUpperCase();
-    });
+    return tradBookHeaderBundle().names;
   }
 
   function activeMarketLabel() {
@@ -2896,22 +3879,36 @@
       .trim();
   }
 
-  function gameDayHeaderEl(gameEl) {
+  function gameDayHeaderEl(gameEl, opts) {
     if (!gameEl) return null;
+    const wantTour = !!(opts && opts.tour);
+    const skipTour = !!(opts && opts.skipTour);
+    const match = (el) => {
+      if (!el || !el.classList || !el.classList.contains('gDay')) return false;
+      const isTour = el.classList.contains('tour');
+      if (wantTour && !isTour) return false;
+      if (skipTour && isTour) return false;
+      return true;
+    };
     const parent = gameEl.parentElement;
     if (parent) {
       const kids = Array.from(parent.children);
       const idx = kids.indexOf(gameEl);
       for (let i = idx - 1; i >= 0; i--) {
-        if (kids[i].classList && kids[i].classList.contains('gDay')) return kids[i];
+        if (match(kids[i])) return kids[i];
       }
     }
     let n = gameEl.previousElementSibling;
     while (n) {
-      if (n.classList && n.classList.contains('gDay')) return n;
+      if (match(n)) return n;
       n = n.previousElementSibling;
     }
     return null;
+  }
+
+  function gameTourLeagueLabel(gameEl) {
+    const t = gameDayHeaderText(gameDayHeaderEl(gameEl, { tour: true }));
+    return t.replace(/\s+\d+\s+games?$/i, '').trim();
   }
 
   /**
@@ -2961,7 +3958,11 @@
     const timeText = String((tEl && tEl.textContent) || '')
       .replace(/\s+/g, ' ')
       .trim();
-    if (/final|live|otp|ot\b|q\d|half|inning|top|bot/i.test(timeText)) {
+    if (
+      /final|live|otp|ot\b|q\d|half|inning|top|bot|\bht\b|\bft\b|\d+\s*'|pen(?:alty)?/i.test(
+        timeText
+      )
+    ) {
       return Date.now() - 60000;
     }
     const tm = timeText.match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
@@ -2976,7 +3977,7 @@
     let y = now.getFullYear();
     let mo = now.getMonth();
     let da = now.getDate();
-    const dayEl = gameDayHeaderEl(gameEl);
+    const dayEl = gameDayHeaderEl(gameEl, { skipTour: true });
     const dayText = gameDayHeaderText(dayEl);
     let dayResolved = false;
     if (/\btoday\b/i.test(dayText)) {
@@ -2994,33 +3995,59 @@
       da = yest.getDate();
       dayResolved = true;
     } else {
+      const months = {
+        jan: 0,
+        feb: 1,
+        mar: 2,
+        apr: 3,
+        may: 4,
+        jun: 5,
+        jul: 6,
+        aug: 7,
+        sep: 8,
+        oct: 9,
+        nov: 10,
+        dec: 11,
+      };
+      // "12 Oct" / "12 October"
       const dm = dayText.match(
-        /\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/i
+        /\b(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\b/i
       );
-      if (dm) {
-        const months = {
-          jan: 0,
-          feb: 1,
-          mar: 2,
-          apr: 3,
-          may: 4,
-          jun: 5,
-          jul: 6,
-          aug: 7,
-          sep: 8,
-          oct: 9,
-          nov: 10,
-          dec: 11,
-        };
-        mo = months[dm[2].slice(0, 3).toLowerCase()];
-        da = parseInt(dm[1], 10);
+      // "Oct 12" / "October 12" / "Oct 12, 2026"
+      const md = !dm
+        ? dayText.match(
+            /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:,?\s*(\d{4}))?\b/i
+          )
+        : null;
+      if (dm || md) {
+        if (dm) {
+          mo = months[dm[2].slice(0, 3).toLowerCase()];
+          da = parseInt(dm[1], 10);
+        } else {
+          mo = months[md[1].slice(0, 3).toLowerCase()];
+          da = parseInt(md[2], 10);
+          if (md[3]) y = parseInt(md[3], 10);
+        }
         const cand = new Date(y, mo, da, hour, min, 0, 0);
-        if (cand.getTime() < now.getTime() - 40 * 86400000) y += 1;
+        if (!md || !md[3]) {
+          if (cand.getTime() < now.getTime() - 40 * 86400000) y += 1;
+        }
         dayResolved = true;
       }
     }
-    // Never assume "today" when the day header is missing — that was pulling in day+ NFL.
-    if (!dayResolved) return null;
+    // Football day+ boards: never guess "today" without a header (was pulling next week's NFL).
+    // Daily sports / NCAAB openers often omit or reformat the day chip — assume today.
+    if (!dayResolved) {
+      const lg = gameLeagueLabel(gameEl) || gameTourLeagueLabel(gameEl);
+      const info = routeInfo();
+      const sk = sportKeyFromSnap({
+        league: lg || (info && info.league) || '',
+        sport: (info && (info.sport || info.board)) || '',
+        teams: gameTeamNames(gameEl),
+      });
+      if (sk === 'NFL' || sk === 'NCAAF') return null;
+      dayResolved = true;
+    }
     return new Date(y, mo, da, hour, min, 0, 0).getTime();
   }
 
@@ -3028,7 +4055,15 @@
     const startMs = parseGameStartMs(gameEl);
     if (startMs == null) return false;
     const now = Date.now();
-    if (startMs > now + BOOK_LEAGUE_MAX_START_AHEAD_MS) return false;
+    const lg = gameLeagueLabel(gameEl) || gameTourLeagueLabel(gameEl);
+    const info = routeInfo();
+    const sk = sportKeyFromSnap({
+      league: lg || (info && info.league) || '',
+      sport: (info && (info.sport || info.board)) || '',
+      teams: gameTeamNames(gameEl),
+    });
+    const maxAhead = sk === 'SOCCER' ? BOOK_LEAGUE_MAX_START_AHEAD_MS_SOCCER : BOOK_LEAGUE_MAX_START_AHEAD_MS;
+    if (startMs > now + maxAhead) return false;
     // Hard cap: never snap games 2+ calendar days out (stops day+ NFL boards).
     const start = new Date(startMs);
     const today = new Date();
@@ -3168,7 +4203,7 @@
     if (!n) return null;
 
     const nOut = tradOutcomeCount(gameEl);
-    const favIdx = tradFavSideIndex(gameEl);
+    const favIdx = tradFavSideIndex(gameEl, nOut);
     if (favIdx == null) return null;
     const homeIdx = nOut >= 3 ? 2 : 1;
     const dogIdx = favIdx === 0 ? homeIdx : 0;
@@ -3178,8 +4213,10 @@
     const perBook = [];
     for (let i = 0; i < n; i++) {
       const cell = bookCells[i];
-      const prices = tradCellSidePrices(cell);
-      const lines = tradCellSideLines(cell);
+      const sides = tradCellSides(cell);
+      const prices = sides.prices;
+      const lines = sides.lines;
+      const els = sides.els;
       const code = codes[i];
       const favPrice = prices[favIdx];
       const dogPrice = prices[dogIdx];
@@ -3191,7 +4228,6 @@
         elFav: null,
         elDog: null,
       });
-      const els = tradCellSideEls(cell);
       if (favPrice != null && els[favIdx]) {
         favEntries.push({
           el: els[favIdx],
@@ -3212,9 +4248,16 @@
       }
     }
 
-    if (favEntries.length < BOOK_LEAGUE_MIN_Y) return null;
+    const infoEarly = routeInfo();
+    const soccerBoard =
+      String((infoEarly && (infoEarly.sport || infoEarly.board)) || '').toLowerCase() === 'soccer';
+    const soccerRow =
+      soccerBoard ||
+      looksLikeSoccerLeague(gameLeagueLabel(gameEl) || gameTourLeagueLabel(gameEl));
+    const minY = soccerRow ? BOOK_LEAGUE_MIN_Y_SOCCER : BOOK_LEAGUE_MIN_Y;
+    if (favEntries.length < minY) return null;
 
-    const useImplied = tradGameBothSidesNegative(gameEl);
+    const useImplied = tradGameBothSidesNegative(gameEl, nOut);
     const favRanks = competitionRankMap(favEntries, useImplied);
     const dogRanks = competitionRankMap(dogEntries, useImplied);
     const y = favEntries.length;
@@ -3276,13 +4319,27 @@
     const spread = modeLine(favEntries.map((e) => e.line));
 
     const at = Date.now();
+    const sportRaw = info.sport || info.board || '';
+    let leagueRaw = gameLeagueLabel(gameEl) || gameTourLeagueLabel(gameEl) || info.league || '';
+    // Persist NCAAB even when .lg is blank/odd on basketball All (new season).
+    const sk = sportKeyFromSnap({
+      league: leagueRaw,
+      sport: sportRaw,
+      teams: teams.slice(0, 2),
+    });
+    if (sk === 'NCAAB' && !/NCAAB|CBB|NCAA|COLLEGE|MBB/i.test(leagueRaw)) {
+      leagueRaw = 'NCAAB';
+    }
+    if (sk === 'SOCCER' && !leagueRaw) {
+      leagueRaw = gameTourLeagueLabel(gameEl) || 'Soccer';
+    }
     return {
       id: id,
       at: at,
       startAt: startAt,
       hourBucket: hourBucket(at),
-      sport: info.sport || info.board || '',
-      league: gameLeagueLabel(gameEl) || info.league || '',
+      sport: sportRaw,
+      league: leagueRaw,
       market: activeMarketLabel() || defaultMarketLabel(),
       teams: teams.slice(0, 2),
       favSide: favIdx,
@@ -3393,20 +4450,23 @@
   }
 
   function zcodeLiveIsFresh() {
-    const live = readZcodeLive(true);
-    if (!live || !live.games || !live.games.length) return false;
-    if (live.updatedAt && Date.now() - live.updatedAt > 15 * 60 * 1000) return false;
-    return true;
+    return zcodeHasGames(readZcodeLive(false));
   }
 
   /**
-   * Take strength /10 from ESPN team record (win %):
-   * League-wide for every sport (best win% in league → 10, worst → 1).
-   * Not remapped against other Takes in the panel.
+   * Take panel strength = ATS record (not win% /10).
+   * MLB / NBA / NHL / NCAAB / WNBA → last 7 days ATS.
+   * NFL / NCAAF → season ATS.
    */
   const STR_CACHE = Object.create(null);
   const STR_TTL_MS = 30 * 60 * 1000;
   const STR_INFLIGHT = Object.create(null);
+  const STR_TEAM_DIR = Object.create(null);
+  const STR_TEAM_DIR_INFLIGHT = Object.create(null);
+  const STR_TEAM_ATS = Object.create(null);
+  const STR_TEAM_ATS_INFLIGHT = Object.create(null);
+  const STR_ODDS_CACHE = Object.create(null);
+  const STR_ODDS_INFLIGHT = Object.create(null);
   const STR_ESPN_PATH = {
     MLB: 'baseball/mlb',
     NHL: 'hockey/nhl',
@@ -3416,6 +4476,22 @@
     WNBA: 'basketball/wnba',
     NCAAB: 'basketball/mens-college-basketball',
   };
+  const ATS_WEEKLY_SPORTS = {
+    MLB: true,
+    NBA: true,
+    NHL: true,
+    NCAAB: true,
+    WNBA: true,
+  };
+  const ATS_WEEKLY_MS = 7 * 86400000;
+
+  function atsIsWeekly(sportKey) {
+    return !!ATS_WEEKLY_SPORTS[String(sportKey || '').toUpperCase()];
+  }
+
+  function atsWindowLabel(sportKey) {
+    return atsIsWeekly(sportKey) ? '7d' : 'ATS';
+  }
 
   function gmGetText(url) {
     return new Promise((resolve, reject) => {
@@ -3444,181 +4520,308 @@
     });
   }
 
-  function strengthOutOfTen(raw, leagueMin, leagueMax) {
-    if (raw == null || !Number.isFinite(raw)) return null;
-    const span = Math.max(1e-6, leagueMax - leagueMin);
-    const t = Math.max(0, Math.min(1, (raw - leagueMin) / span));
-    return Math.round((1 + t * 9) * 10) / 10;
+  function espnTeamsListUrl(sportKey) {
+    const sk = String(sportKey || '').toUpperCase();
+    const path = STR_ESPN_PATH[sk];
+    if (!path) return null;
+    let url = 'https://site.api.espn.com/apis/site/v2/sports/' + path + '/teams?limit=500';
+    if (sk === 'NCAAF') url += '&groups=80';
+    if (sk === 'NCAAB') url += '&groups=50';
+    return url;
   }
 
-  function finalizeStrengthPack(entries, source) {
-    const raws = entries.map((e) => e.raw).filter((n) => Number.isFinite(n));
-    const leagueMin = raws.length ? Math.min.apply(null, raws) : 0;
-    const leagueMax = raws.length ? Math.max.apply(null, raws) : 1;
-    for (let i = 0; i < entries.length; i++) {
-      entries[i].score = strengthOutOfTen(entries[i].raw, leagueMin, leagueMax);
-    }
-    return {
-      at: Date.now(),
-      source: source || '',
-      leagueMin: leagueMin,
-      leagueMax: leagueMax,
-      entries: entries,
-    };
-  }
-
-  function parseEspnStandingsWinPct(text) {
+  function parseEspnTeamsDir(text) {
     let json;
     try {
       json = JSON.parse(text);
     } catch (_) {
-      return finalizeStrengthPack([], 'espn-record');
+      return [];
     }
-    const entries = [];
-    const seen = Object.create(null);
-    function walk(node) {
-      if (!node) return;
-      if (Array.isArray(node)) {
-        for (let i = 0; i < node.length; i++) walk(node[i]);
-        return;
+    const out = [];
+    const leagues =
+      (json.sports && json.sports[0] && json.sports[0].leagues) || json.leagues || [];
+    for (let li = 0; li < leagues.length; li++) {
+      const teams = leagues[li].teams || [];
+      for (let i = 0; i < teams.length; i++) {
+        const wrap = teams[i] || {};
+        const team = wrap.team || wrap;
+        const id = String(team.id || '');
+        if (!id) continue;
+        const names = [
+          team.displayName,
+          team.shortDisplayName,
+          team.name,
+          team.nickname,
+          team.location,
+          team.abbreviation,
+        ]
+          .map((x) => String(x || '').trim())
+          .filter(Boolean);
+        if (!names.length) continue;
+        out.push({ id: id, names: names });
       }
-      const standings = node.standings;
-      const list = standings && standings.entries;
-      if (Array.isArray(list)) {
-        for (let i = 0; i < list.length; i++) {
-          const e = list[i] || {};
-          const team = e.team || {};
-          const uid = String(team.uid || team.id || team.abbreviation || team.displayName || '');
-          if (uid && seen[uid]) continue;
-          const stats = e.stats || [];
-          let winPct = null;
-          let wins = null;
-          let losses = null;
-          let ties = null;
-          // CFB/NCAAB often only expose overall as displayValue "5-1" (no winPercent)
-          for (let s = 0; s < stats.length; s++) {
-            const st = stats[s] || {};
-            const name = String(st.name || '');
-            if (name === 'overall' || name === 'Overall') {
-              const dv = String(st.displayValue != null ? st.displayValue : st.value || '');
-              const m = /^(\d+)\s*-\s*(\d+)(?:\s*-\s*(\d+))?/.exec(dv.trim());
-              if (m) {
-                wins = parseInt(m[1], 10);
-                losses = parseInt(m[2], 10);
-                ties = m[3] != null ? parseInt(m[3], 10) : 0;
-                break; // first overall row only (ignore Home/Away splits)
-              }
-            }
-          }
-          for (let s = 0; s < stats.length; s++) {
-            const st = stats[s] || {};
-            const name = String(st.name || '');
-            if (name === 'winPercent' && winPct == null) winPct = Number(st.value);
-            if (name === 'wins' && wins == null) wins = Number(st.value);
-            if (name === 'losses' && losses == null) losses = Number(st.value);
-            if ((name === 'ties' || name === 'otLosses') && ties == null) {
-              ties = Number(st.value);
-            }
-          }
-          if (!Number.isFinite(winPct) && Number.isFinite(wins) && Number.isFinite(losses)) {
-            const played = wins + losses + (Number.isFinite(ties) ? ties : 0);
-            if (played > 0) winPct = wins / played;
-          }
-          if (!Number.isFinite(winPct)) continue;
-          const names = [
-            team.displayName,
-            team.shortDisplayName,
-            team.name,
-            team.nickname,
-            team.abbreviation,
-          ]
-            .map((x) => String(x || '').trim())
-            .filter(Boolean);
-          if (!names.length) continue;
-          if (uid) seen[uid] = true;
-          let record = '';
-          if (Number.isFinite(wins) && Number.isFinite(losses)) {
-            record =
-              Math.round(wins) +
-              '-' +
-              Math.round(losses) +
-              (Number.isFinite(ties) && ties > 0 ? '-' + Math.round(ties) : '');
-          }
-          entries.push({
-            raw: winPct,
-            names: names,
-            record: record,
-            wins: wins,
-            losses: losses,
-          });
-        }
-      }
-      if (Array.isArray(node.children)) walk(node.children);
     }
-    walk(json);
-    return finalizeStrengthPack(entries, 'espn-record');
+    return out;
   }
 
-  function strengthFetchUrl(sportKey) {
+  function ensureEspnTeamDir(sportKey) {
     const sk = String(sportKey || '').toUpperCase();
-    const path = STR_ESPN_PATH[sk];
-    if (!path) return null;
-    return {
-      kind: 'espn-standings',
-      url: 'https://site.api.espn.com/apis/v2/sports/' + path + '/standings',
-    };
-  }
-
-  async function fetchStrengthPack(sportKey) {
-    const spec = strengthFetchUrl(sportKey);
-    if (!spec) return finalizeStrengthPack([], 'none');
-    const text = await gmGetText(spec.url);
-    return parseEspnStandingsWinPct(text);
-  }
-
-  function ensureStrengthSport(sportKey) {
-    const sk = String(sportKey || '').toUpperCase();
-    if (!sk) return Promise.resolve(null);
-    const cached = STR_CACHE[sk];
-    if (
-      cached &&
-      cached.entries &&
-      cached.entries.length &&
-      Date.now() - cached.at < STR_TTL_MS
-    ) {
-      return Promise.resolve(cached);
+    if (!sk || !STR_ESPN_PATH[sk]) return Promise.resolve([]);
+    const cached = STR_TEAM_DIR[sk];
+    if (cached && cached.at && Date.now() - cached.at < STR_TTL_MS * 4) {
+      return Promise.resolve(cached.teams || []);
     }
-    if (STR_INFLIGHT[sk]) return STR_INFLIGHT[sk];
-    STR_INFLIGHT[sk] = fetchStrengthPack(sk)
-      .then((pack) => {
-        STR_CACHE[sk] = pack;
-        delete STR_INFLIGHT[sk];
-        log('strength loaded', sk, (pack.entries && pack.entries.length) || 0);
-        return pack;
+    if (STR_TEAM_DIR_INFLIGHT[sk]) return STR_TEAM_DIR_INFLIGHT[sk];
+    const url = espnTeamsListUrl(sk);
+    STR_TEAM_DIR_INFLIGHT[sk] = gmGetText(url)
+      .then((text) => {
+        const teams = parseEspnTeamsDir(text);
+        STR_TEAM_DIR[sk] = { at: Date.now(), teams: teams };
+        delete STR_TEAM_DIR_INFLIGHT[sk];
+        log('espn teams', sk, teams.length);
+        return teams;
       })
       .catch((err) => {
-        delete STR_INFLIGHT[sk];
-        log('strength fetch fail', sk, err && err.message);
-        if (cached && cached.entries && cached.entries.length) return cached;
-        const empty = finalizeStrengthPack([], 'error');
-        STR_CACHE[sk] = empty;
-        return empty;
+        delete STR_TEAM_DIR_INFLIGHT[sk];
+        log('espn teams fail', sk, err && err.message);
+        return (cached && cached.teams) || [];
       });
-    return STR_INFLIGHT[sk];
+    return STR_TEAM_DIR_INFLIGHT[sk];
   }
 
   /** Prefer exact / prefix match; never let "New Mexico" win via "New Mexico State". */
   function scoreStrengthNameMatch(want, cand) {
     if (!want || !cand) return 0;
     if (want === cand) return 100000 + cand.length;
-    // X vs X State are different schools
     if (want + ' state' === cand || cand === want + ' state') return 0;
     if (cand.indexOf(want + ' state ') === 0 || cand === want + ' state') return 0;
     if (want.indexOf(cand + ' state ') === 0 || want === cand + ' state') return 0;
-    if (cand.indexOf(want + ' ') === 0) return 50000 + want.length; // "arkansas state red wolves"
+    if (cand.indexOf(want + ' ') === 0) return 50000 + want.length;
     if (want.indexOf(cand + ' ') === 0 && cand.length >= 4) return 20000 + cand.length;
     if (teamsMatch(want, cand)) return 10000 + Math.min(want.length, cand.length);
     return 0;
+  }
+
+  function resolveEspnTeamId(sportKey, teamName) {
+    const sk = String(sportKey || '').toUpperCase();
+    const dir = (STR_TEAM_DIR[sk] && STR_TEAM_DIR[sk].teams) || [];
+    const want = normTeam(canonTeam(teamName, sk) || teamName);
+    if (!want || !dir.length) return null;
+    let best = null;
+    let bestScore = 0;
+    for (let i = 0; i < dir.length; i++) {
+      const names = dir[i].names || [];
+      for (let n = 0; n < names.length; n++) {
+        const score = scoreStrengthNameMatch(want, normTeam(names[n]));
+        if (score > bestScore) {
+          bestScore = score;
+          best = dir[i];
+        }
+      }
+    }
+    return best && bestScore >= 10000 ? best : null;
+  }
+
+  function homeSpreadFromOdds(odds) {
+    if (!odds) return null;
+    const home = odds.homeTeamOdds || {};
+    const block = home.close || home.current || home.open || null;
+    const ps = block && block.pointSpread;
+    const raw =
+      (ps && (ps.alternateDisplayValue || ps.american || ps.displayValue)) || '';
+    let line = parseFloat(String(raw).replace(/[^0-9.+-]/g, ''));
+    if (Number.isFinite(line)) return line;
+    const spread = Number(odds.spread);
+    if (!Number.isFinite(spread)) return null;
+    if (home.favorite) return -Math.abs(spread);
+    if (odds.awayTeamOdds && odds.awayTeamOdds.favorite) return Math.abs(spread);
+    const details = String(odds.details || '');
+    const m = details.match(/([+-]\d+(?:\.\d+)?)\s*$/);
+    if (m) {
+      const favLine = parseFloat(m[1]);
+      if (!Number.isFinite(favLine)) return null;
+      // details names the favorite's line; without side info treat as away-fav abs
+      return odds.awayTeamOdds && odds.awayTeamOdds.favorite === false
+        ? favLine
+        : -favLine;
+    }
+    return null;
+  }
+
+  function atsCoverSide(awayScore, homeScore, homeLine) {
+    if (
+      !Number.isFinite(awayScore) ||
+      !Number.isFinite(homeScore) ||
+      !Number.isFinite(homeLine)
+    ) {
+      return null;
+    }
+    const adj = homeScore + homeLine - awayScore;
+    if (Math.abs(adj) < 1e-9) return 'push';
+    return adj > 0 ? 'home' : 'away';
+  }
+
+  function fetchEventOdds(sportKey, eventId, competitionId) {
+    const sk = String(sportKey || '').toUpperCase();
+    const path = STR_ESPN_PATH[sk];
+    if (!path || !eventId || !competitionId) return Promise.resolve(null);
+    const ck = sk + '|' + eventId;
+    if (Object.prototype.hasOwnProperty.call(STR_ODDS_CACHE, ck)) {
+      return Promise.resolve(STR_ODDS_CACHE[ck]);
+    }
+    if (STR_ODDS_INFLIGHT[ck]) return STR_ODDS_INFLIGHT[ck];
+    const parts = path.split('/');
+    const url =
+      'https://sports.core.api.espn.com/v2/sports/' +
+      parts[0] +
+      '/leagues/' +
+      parts[1] +
+      '/events/' +
+      eventId +
+      '/competitions/' +
+      competitionId +
+      '/odds';
+    STR_ODDS_INFLIGHT[ck] = gmGetText(url)
+      .then((text) => {
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (_) {
+          json = null;
+        }
+        const item =
+          json && Array.isArray(json.items) && json.items.length ? json.items[0] : null;
+        STR_ODDS_CACHE[ck] = item;
+        delete STR_ODDS_INFLIGHT[ck];
+        return item;
+      })
+      .catch(() => {
+        STR_ODDS_CACHE[ck] = null;
+        delete STR_ODDS_INFLIGHT[ck];
+        return null;
+      });
+    return STR_ODDS_INFLIGHT[ck];
+  }
+
+  function fmtAtsRecord(wins, losses, pushes) {
+    const w = Math.round(wins || 0);
+    const l = Math.round(losses || 0);
+    const p = Math.round(pushes || 0);
+    return p > 0 ? w + '-' + l + '-' + p : w + '-' + l;
+  }
+
+  async function computeTeamAts(sportKey, teamId, teamNames) {
+    const sk = String(sportKey || '').toUpperCase();
+    const path = STR_ESPN_PATH[sk];
+    if (!path || !teamId) {
+      return { raw: null, record: '', wins: 0, losses: 0, pushes: 0, names: teamNames || [] };
+    }
+    const weekly = atsIsWeekly(sk);
+    const since = weekly ? Date.now() - ATS_WEEKLY_MS : 0;
+    const url =
+      'https://site.api.espn.com/apis/site/v2/sports/' +
+      path +
+      '/teams/' +
+      teamId +
+      '/schedule?seasontype=2';
+    const text = await gmGetText(url);
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch (_) {
+      json = null;
+    }
+    const events = (json && json.events) || [];
+    let wins = 0;
+    let losses = 0;
+    let pushes = 0;
+    for (let i = 0; i < events.length; i++) {
+      const ev = events[i] || {};
+      const c = (ev.competitions || [])[0];
+      if (!c) continue;
+      const st = c.status && c.status.type;
+      if (!(st && st.completed)) continue;
+      const tip = Date.parse(ev.date || c.date || c.startDate || '');
+      if (weekly && Number.isFinite(tip) && tip < since) continue;
+      const comps = c.competitors || [];
+      const home = comps.find((x) => x.homeAway === 'home');
+      const away = comps.find((x) => x.homeAway === 'away');
+      if (!home || !away) continue;
+      const awayScore = Number(away.score && away.score.value != null ? away.score.value : away.score);
+      const homeScore = Number(home.score && home.score.value != null ? home.score.value : home.score);
+      if (!Number.isFinite(awayScore) || !Number.isFinite(homeScore)) continue;
+      const myHome = String((home.team && home.team.id) || home.id || '') === String(teamId);
+      const myAway = String((away.team && away.team.id) || away.id || '') === String(teamId);
+      if (!myHome && !myAway) continue;
+      const odds = await fetchEventOdds(sk, ev.id, c.id || ev.id);
+      const homeLine = homeSpreadFromOdds(odds);
+      if (homeLine == null) continue;
+      const side = atsCoverSide(awayScore, homeScore, homeLine);
+      if (!side) continue;
+      if (side === 'push') {
+        pushes += 1;
+        continue;
+      }
+      const covered = (side === 'home' && myHome) || (side === 'away' && myAway);
+      if (covered) wins += 1;
+      else losses += 1;
+    }
+    const decided = wins + losses;
+    const raw = decided > 0 ? wins / decided : null;
+    return {
+      raw: raw,
+      record: decided || pushes ? fmtAtsRecord(wins, losses, pushes) : '',
+      wins: wins,
+      losses: losses,
+      pushes: pushes,
+      names: teamNames || [],
+      weekly: weekly,
+    };
+  }
+
+  function teamAtsCacheKey(sportKey, teamId) {
+    return String(sportKey || '').toUpperCase() + '|' + String(teamId || '');
+  }
+
+  function ensureTeamAtsEntry(sportKey, teamName) {
+    const sk = String(sportKey || '').toUpperCase();
+    const hit = resolveEspnTeamId(sk, teamName);
+    if (!hit) return Promise.resolve(null);
+    const ck = teamAtsCacheKey(sk, hit.id);
+    const cached = STR_TEAM_ATS[ck];
+    if (cached && Date.now() - cached.at < STR_TTL_MS) return Promise.resolve(cached.entry);
+    if (STR_TEAM_ATS_INFLIGHT[ck]) return STR_TEAM_ATS_INFLIGHT[ck];
+    STR_TEAM_ATS_INFLIGHT[ck] = computeTeamAts(sk, hit.id, hit.names)
+      .then((entry) => {
+        STR_TEAM_ATS[ck] = { at: Date.now(), entry: entry };
+        // Merge into sport pack for lookupStrengthEntry
+        let pack = STR_CACHE[sk];
+        if (!pack || !Array.isArray(pack.entries)) {
+          pack = {
+            at: Date.now(),
+            source: 'espn-ats',
+            weekly: atsIsWeekly(sk),
+            entries: [],
+          };
+          STR_CACHE[sk] = pack;
+        }
+        const idx = pack.entries.findIndex(
+          (e) => e && e.teamId && String(e.teamId) === String(hit.id)
+        );
+        const row = Object.assign({ teamId: hit.id }, entry);
+        if (idx >= 0) pack.entries[idx] = row;
+        else pack.entries.push(row);
+        pack.at = Date.now();
+        pack.weekly = atsIsWeekly(sk);
+        delete STR_TEAM_ATS_INFLIGHT[ck];
+        return entry;
+      })
+      .catch((err) => {
+        delete STR_TEAM_ATS_INFLIGHT[ck];
+        log('ats fail', sk, teamName, err && err.message);
+        return null;
+      });
+    return STR_TEAM_ATS_INFLIGHT[ck];
   }
 
   function lookupStrengthEntry(sportKey, teamName) {
@@ -3641,18 +4844,18 @@
         }
       }
     }
-    return best;
+    return bestScore >= 10000 ? best : null;
   }
 
-  function fmtStrScore(n) {
-    if (n == null || !Number.isFinite(n)) return '—';
-    return Number.isInteger(n) ? String(n) : n.toFixed(1);
+  function fmtStrScore(record) {
+    if (!record) return '—';
+    return String(record);
   }
 
-  function strTierClass(n) {
-    if (n == null || !Number.isFinite(n)) return 'na';
-    if (n >= 7.5) return 'hi';
-    if (n >= 5) return 'mid';
+  function strTierClass(coverPct) {
+    if (coverPct == null || !Number.isFinite(coverPct)) return 'na';
+    if (coverPct >= 0.55) return 'hi';
+    if (coverPct >= 0.45) return 'mid';
     return 'lo';
   }
 
@@ -3663,34 +4866,39 @@
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       const sk = r.sportKey;
-      const pack = STR_CACHE[String(sk || '').toUpperCase()];
       const hit = lookupStrengthEntry(sk, r.team);
       r.strRaw = hit && Number.isFinite(hit.raw) ? hit.raw : null;
       r.strRecord = hit && hit.record ? hit.record : '';
-      r.strScore = null;
-      if (r.strRaw == null) continue;
-      // Always league-wide: worst record in the league → ~1/10, best → 10/10
-      r.strScore =
-        pack && Number.isFinite(pack.leagueMin) && Number.isFinite(pack.leagueMax)
-          ? strengthOutOfTen(r.strRaw, pack.leagueMin, pack.leagueMax)
-          : hit && Number.isFinite(hit.score)
-            ? hit.score
-            : null;
+      r.strWeekly = atsIsWeekly(sk);
+      r.strScore = r.strRaw; // cover % for tier coloring
     }
   }
 
   async function ensureStrengthForRecs(recs) {
-    const sports = {};
     const rows = []
       .concat((recs && recs.favs) || [])
       .concat((recs && recs.dogs) || []);
+    const bySport = Object.create(null);
     for (let i = 0; i < rows.length; i++) {
-      const sk = rows[i].sportKey;
-      if (sk) sports[sk] = true;
+      const sk = String(rows[i].sportKey || '').toUpperCase();
+      const team = rows[i].team;
+      if (!sk || !team) continue;
+      if (!bySport[sk]) bySport[sk] = [];
+      bySport[sk].push(team);
     }
-    const keys = Object.keys(sports);
-    if (!keys.length) return;
-    await Promise.all(keys.map((k) => ensureStrengthSport(k)));
+    const sports = Object.keys(bySport);
+    if (!sports.length) return;
+    await Promise.all(
+      sports.map(async (sk) => {
+        await ensureEspnTeamDir(sk);
+        const uniq = Array.from(new Set(bySport[sk]));
+        // Cap concurrency a bit for college boards
+        const chunk = 4;
+        for (let i = 0; i < uniq.length; i += chunk) {
+          await Promise.all(uniq.slice(i, i + chunk).map((t) => ensureTeamAtsEntry(sk, t)));
+        }
+      })
+    );
     attachStrengthToRecs(recs);
   }
 
@@ -3740,9 +4948,63 @@
     return opp;
   }
 
+  function gameHoldPct(gameEl) {
+    if (!gameEl) return null;
+    const holds = gameEl.querySelectorAll(':scope > .cell.cHold');
+    for (let i = 0; i < holds.length; i++) {
+      const hold = holds[i];
+      if (hold.classList.contains('none')) continue;
+      const pct = parseHoldPct(hold);
+      if (pct != null) return pct;
+    }
+    return null;
+  }
+
+  function takeRecFingerprint(recs) {
+    const parts = [];
+    const push = (role, rows) => {
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        parts.push(
+          role,
+          r.gameId || '',
+          r.team || '',
+          r.hold != null ? String(r.hold) : '',
+          r.ratio != null ? String(r.ratio) : '',
+          r.againstTake != null ? String(r.againstTake) : '',
+          r.otcSide || '',
+          r.otcLabel || ''
+        );
+      }
+    };
+    push('f', (recs && recs.favs) || []);
+    push('d', (recs && recs.dogs) || []);
+    parts.push(recs && recs.steamBoost ? '1' : '0');
+    return parts.join('\x1f');
+  }
+
+  function zRatioFromTeam(el) {
+    if (!el) return null;
+    const n = parseFloat(String(el.getAttribute('data-pc-zratio') || '').replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return n;
+  }
+
+  /** My Line cell must literally read Take X DOG or Take X FAV. */
+  function myLineTakeRole(gameEl) {
+    const fair = tradFairCell(gameEl);
+    if (!fair) return null;
+    const text = String(fair.getAttribute('data-pc-take') || '');
+    const role = fair.getAttribute('data-pc-take-role');
+    if (role === 'dog' && /^Take\s+.+\s+DOG\b/i.test(text)) return 'dog';
+    if (role === 'fav' && /^Take\s+.+\s+FAV\b/i.test(text)) return 'fav';
+    return null;
+  }
+
   /**
-   * Take FAV + fav ZCode ratio < 1 · Take DOG + fav ratio ≥ 2.
-   * If ZCode isn't syncing (common on mobile), still list Takes without the ratio gate.
+   * Take picks (panel only; My Line overlay unchanged):
+   *   hold ≤ +0.5% AND My Line says Take X DOG AND dog ratio ≤ fav ratio
+   *   hold ≥ +1.5% AND fav ZCode ratio < 1 AND My Line says Take X FAV
    * When steamBoost: same list, sorted by how far O→C is from favoring the take
    * (most adverse steam first; O→C with the take sinks).
    */
@@ -3750,44 +5012,60 @@
     const steamBoost = !!(opts && opts.steamBoost);
     const favs = [];
     const dogs = [];
-    const requireRatio = zcodeLiveIsFresh();
+    const zFresh = zcodeLiveIsFresh();
     const games = tradBoardGames();
     for (let gi = 0; gi < games.length; gi++) {
       const gameEl = games[gi];
-      const fair = tradFairCell(gameEl);
-      const msg = fair && fair.querySelector('.pc-circa-take-msg');
-      if (!msg) continue;
-      const role = msg.classList.contains('role-fav')
-        ? 'fav'
-        : msg.classList.contains('role-dog')
-          ? 'dog'
-          : null;
-      if (!role) continue;
+      const hold = gameHoldPct(gameEl);
+      if (hold == null) continue;
+
+      let role = null;
+      if (hold <= TAKE_REC_DOG_HOLD_MAX) role = 'dog';
+      else if (hold >= TAKE_REC_FAV_HOLD_MIN) role = 'fav';
+      else continue;
+      // Dogs only when My Line says Take X DOG; favs only when it says Take X FAV.
+      if (myLineTakeRole(gameEl) !== role) continue;
+
+      const nOut = tradOutcomeCount(gameEl);
+      const favIdx = tradFavSideIndex(gameEl, nOut);
+      if (favIdx == null) continue;
+      const homeIdx = nOut >= 3 ? 2 : 1;
+      const dogIdx = favIdx === 0 ? homeIdx : 0;
+      const takeSideIdx = role === 'fav' ? favIdx : dogIdx;
+      const takeTeamIdx = outcomeToTeamIndex(takeSideIdx, nOut);
+      if (takeTeamIdx == null) continue;
+      const names = tradTeamNames(gameEl);
+      if (!names || names.length < 2) continue;
+      const team = names[takeTeamIdx];
+      if (!team) continue;
+
       const favChip = gameEl.querySelector(
-        ':scope > .cGame .team .pc-zcode-ratio.role-fav, .pc-zcode-ratio.role-fav'
+        ':scope > .cGame .team[data-pc-zrole="fav"], .team[data-pc-zrole="fav"]'
       );
-      let ratio = null;
-      if (favChip) {
-        ratio = parseFloat(String(favChip.textContent || '').replace(/[^\d.]/g, ''));
-        if (!Number.isFinite(ratio) || ratio <= 0) ratio = null;
+      const dogChip = gameEl.querySelector(
+        ':scope > .cGame .team[data-pc-zrole="dog"], .team[data-pc-zrole="dog"]'
+      );
+      const ratio = zRatioFromTeam(favChip);
+      const dogRatio = zRatioFromTeam(dogChip);
+      // Favs always need ratio < 1 (skip until ZCode is on the board).
+      if (role === 'fav') {
+        if (ratio == null || !(ratio < 1)) continue;
       }
-      if (requireRatio) {
-        if (ratio == null) continue;
-        if (role === 'fav' && !(ratio < 1)) continue;
-        if (role === 'dog' && !(ratio >= 2)) continue;
-      }
-      const otc = readOtcMove(gameEl);
+      // Dogs: skip when the dog's % ratio is higher than the favorite's (Bruins case).
+      if (role === 'dog' && dogRatio != null && ratio != null && dogRatio > ratio) continue;
+
+      const otcMark = gameEl.querySelector('.team[data-pc-otc]');
+      const otcSideRaw = otcMark ? otcMark.getAttribute('data-pc-otc') : '';
+      const otcSide = otcSideRaw === 'fav' || otcSideRaw === 'dog' ? otcSideRaw : '';
+      const otc = steamBoost
+        ? readOtcMove(gameEl)
+        : { againstDog: 0, againstFav: 0, favors: otcSide || null, label: '' };
       // + = O→C moved against the take (boost); − = O→C favored the take (sink)
       const againstTake =
         role === 'dog'
           ? (otc.againstDog || 0) - (otc.againstFav || 0)
           : (otc.againstFav || 0) - (otc.againstDog || 0);
-      const txt = String(msg.textContent || '');
-      const takeM = /^Take\s+(.+?)\s+(FAV|DOG)\b/i.exec(txt);
-      const agreeM = /agree\s+(\d+)\s*%/i.exec(txt);
-      const team = takeM ? takeM[1].trim() : '';
-      if (!team) continue;
-      const agree = agreeM ? parseInt(agreeM[1], 10) : null;
+
       const gameId = String(gameEl.getAttribute('data-game') || gameEl.id || '');
       const tEl = gameEl.querySelector(
         ':scope > .cGame .tStar .t, :scope > .cGame .when .t, :scope > .cGame span.t, .cGame .t'
@@ -3797,35 +5075,38 @@
         .trim();
       const tipMs = tipSortMs(gameEl, time);
       const day = tipDayLabel(gameEl, tipMs);
-      const names = tradTeamNames(gameEl);
-      const opponent = pickTakeOpponent(team, names, takeSportKeyForGame(gameEl));
+      const sportKey = takeSportKeyForGame(gameEl);
+      const opponent = pickTakeOpponent(team, names, sportKey);
       const row = {
         team: team,
         opponent: opponent,
+        hold: hold,
         ratio: ratio,
-        agree: agree,
         gameId: gameId,
         gameEl: gameEl,
         time: time,
         day: day,
         tipMs: tipMs,
         boardIdx: gi,
+        otcSide: otcSide,
         otcFavors: otc.favors,
         againstDog: otc.againstDog || 0,
         againstFav: otc.againstFav || 0,
         againstTake: againstTake,
         otcLabel: otc.label || '',
-        sportKey: takeSportKeyForGame(gameEl),
+        sportKey: sportKey,
         strRaw: null,
         strScore: null,
+        strRecord: '',
+        strWeekly: atsIsWeekly(sportKey),
       };
       if (role === 'fav') favs.push(row);
-      else if (role === 'dog') dogs.push(row);
+      else dogs.push(row);
     }
     const byTip = (a, b) =>
       a.tipMs - b.tipMs ||
       a.boardIdx - b.boardIdx ||
-      (a.ratio != null && b.ratio != null ? a.ratio - b.ratio : 0);
+      (a.hold != null && b.hold != null ? a.hold - b.hold : 0);
     if (steamBoost) {
       const bySteam = (a, b) => b.againstTake - a.againstTake || byTip(a, b);
       dogs.sort(bySteam);
@@ -3837,7 +5118,8 @@
     return {
       favs: favs,
       dogs: dogs,
-      requireRatio: requireRatio,
+      requireRatio: true,
+      zFresh: zFresh,
       steamBoost: steamBoost,
     };
   }
@@ -3872,16 +5154,26 @@
 
   function setTakeRecCollapsed(wrap, collapsed) {
     if (!wrap) return;
+    const wasCollapsed = wrap.classList.contains('pc-tr-collapsed');
     wrap.classList.toggle('pc-tr-collapsed', !!collapsed);
     const tog = wrap.querySelector('.pc-tr-tog');
     if (tog) tog.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     try {
       sessionStorage.setItem('pcTakeRecCollapsed', collapsed ? '1' : '0');
     } catch (_) {}
+    // Expanding: force a body paint (collapsed path only updates the title count).
+    if (wasCollapsed && !collapsed) {
+      takeRecLastFp = '';
+      scheduleTakeRecRefresh(0);
+    }
   }
 
   function ensureTakeRecUi() {
-    if (!IS_4C) return null;
+    if (!IS_4C || !TAKE_REC_PANEL_ENABLED) {
+      const old = document.getElementById(TAKE_REC_UI_ID);
+      if (old) old.remove();
+      return null;
+    }
     let wrap = document.getElementById(TAKE_REC_UI_ID);
     if (wrap) return wrap;
     wrap = document.createElement('div');
@@ -3897,7 +5189,7 @@
     title.textContent = 'Take picks';
     const sub = document.createElement('div');
     sub.className = 'pc-tr-sub';
-    sub.textContent = 'Take ∩ ZCode';
+    sub.textContent = 'Take DOG ≤+0.5% · Take FAV ≥+1.5% + ratio <1';
     headText.appendChild(title);
     headText.appendChild(sub);
     const zcodeBtn = document.createElement('button');
@@ -3953,7 +5245,8 @@
         document.getElementById('g-' + id);
       flashTakeRecGame(gameEl);
     });
-    let preferCollapsed = isMobileishUi();
+    // Always start minimised; session can expand for this tab only.
+    let preferCollapsed = true;
     try {
       const saved = sessionStorage.getItem('pcTakeRecCollapsed');
       if (saved === '0') preferCollapsed = false;
@@ -3962,6 +5255,14 @@
     setTakeRecCollapsed(wrap, preferCollapsed);
     (document.body || document.documentElement).appendChild(wrap);
     return wrap;
+  }
+
+  function takeRecOtcMark(side) {
+    const otcEl = document.createElement('span');
+    otcEl.className = 'pc-tr-otc ' + side;
+    otcEl.textContent = 'O->C';
+    otcEl.title = side === 'fav' ? 'O->C → FAV' : 'O->C → DOG';
+    return otcEl;
   }
 
   function renderTakeRecSection(parent, label, role, rows, emptyText, showOtc) {
@@ -3984,22 +5285,28 @@
         btn.className = 'pc-tr-row role-' + role;
         if (r.gameId) btn.setAttribute('data-game', r.gameId);
         const whenLabel = [r.day, r.time].filter(Boolean).join(' ') || '—';
-        const strLabel = fmtStrScore(r.strScore);
-        const recBit = r.strRecord ? ' · ' + r.strRecord : '';
+        const atsLabel = fmtStrScore(r.strRecord);
+        const atsScope = r.strWeekly ? '7d ATS' : 'Season ATS';
+        const coverBit =
+          r.strRaw != null && Number.isFinite(r.strRaw)
+            ? ' · ' + Math.round(r.strRaw * 1000) / 10 + '% cover'
+            : '';
         btn.title =
           whenLabel +
-          ' · record ' +
-          strLabel +
-          '/10' +
-          recBit +
+          ' · ' +
+          atsScope +
+          ' ' +
+          atsLabel +
+          coverBit +
           ' · Take ' +
           r.team +
           (r.opponent ? ' vs ' + r.opponent : '') +
           ' ' +
           (role === 'fav' ? 'FAV' : 'DOG') +
+          (r.hold != null ? ' · hold ' + (r.hold > 0 ? '+' : '') + r.hold + '%' : '') +
           (r.ratio != null ? ' · fav ratio ' + fmtRatioChip(r.ratio) : '') +
-          (r.otcLabel ? ' · O→C ' + r.otcLabel : '') +
-          (r.agree != null ? ' · agree ' + r.agree + '%' : '');
+          (r.otcSide ? ' · O->C ' + (r.otcSide === 'fav' ? 'FAV' : 'DOG') : '') +
+          (r.otcLabel ? ' · O→C ' + r.otcLabel : '');
         const whenWrap = document.createElement('span');
         whenWrap.className = 'pc-tr-when';
         if (r.day) {
@@ -4012,41 +5319,58 @@
         timeEl.className = 'pc-tr-time';
         timeEl.textContent = r.time || '—';
         whenWrap.appendChild(timeEl);
-        const strEl = document.createElement('span');
-        strEl.className = 'pc-tr-str ' + strTierClass(r.strScore);
-        strEl.title =
-          'Record /10 vs whole league' +
-          (r.strRecord ? ' · ' + r.strRecord : '');
-        const strNum = document.createElement('span');
-        strNum.className = 'pc-tr-str-num';
-        strNum.textContent = strLabel;
-        const strDen = document.createElement('span');
-        strDen.className = 'pc-tr-str-den';
-        strDen.textContent = '/10';
-        strEl.appendChild(strNum);
-        strEl.appendChild(strDen);
-        const teamsWrap = document.createElement('span');
-        teamsWrap.className = 'pc-tr-teams';
-        const pick = document.createElement('span');
-        pick.className = 'pc-tr-pick';
+        const showStr = !!(r.strRecord || (r.strRaw != null && Number.isFinite(r.strRaw)));
+        const main = document.createElement('span');
+        main.className = 'pc-tr-main';
         const takeWord = document.createElement('span');
         takeWord.className = 'pc-tr-take';
         takeWord.textContent = 'Take';
         const team = document.createElement('span');
         team.className = 'pc-tr-team';
         team.textContent = r.team;
-        pick.appendChild(takeWord);
-        pick.appendChild(team);
-        teamsWrap.appendChild(pick);
+        if (r.otcSide === role) team.appendChild(takeRecOtcMark(r.otcSide));
+        const roleEl = document.createElement('span');
+        roleEl.className = 'pc-tr-role';
+        roleEl.textContent = role === 'fav' ? 'FAV' : 'DOG';
+        main.appendChild(takeWord);
+        main.appendChild(team);
+        main.appendChild(roleEl);
+        const meta = document.createElement('span');
+        meta.className = 'pc-tr-meta';
+        meta.appendChild(whenWrap);
+        if (showStr) {
+          const strEl = document.createElement('span');
+          strEl.className = 'pc-tr-str ' + strTierClass(r.strRaw);
+          strEl.title = atsScope + (r.strRecord ? ' · ' + r.strRecord : '') + coverBit;
+          const strNum = document.createElement('span');
+          strNum.className = 'pc-tr-str-num';
+          strNum.textContent = atsLabel;
+          const strDen = document.createElement('span');
+          strDen.className = 'pc-tr-str-den';
+          strDen.textContent = atsWindowLabel(r.sportKey);
+          strEl.appendChild(strNum);
+          strEl.appendChild(strDen);
+          meta.appendChild(strEl);
+        }
         if (r.opponent) {
           const opp = document.createElement('span');
           opp.className = 'pc-tr-opp';
           opp.textContent = 'vs ' + r.opponent;
-          teamsWrap.appendChild(opp);
+          if (r.otcSide && r.otcSide !== role) opp.appendChild(takeRecOtcMark(r.otcSide));
+          meta.appendChild(opp);
         }
-        btn.appendChild(whenWrap);
-        btn.appendChild(strEl);
-        btn.appendChild(teamsWrap);
+        if (r.hold != null) {
+          const holdEl = document.createElement('span');
+          holdEl.className =
+            'pc-tr-hold' +
+            (r.hold < 0 ? ' arb' : r.hold <= TAKE_REC_DOG_HOLD_MAX ? ' tight' : ' wide');
+          holdEl.textContent =
+            (r.hold > 0 ? '+' : '') +
+            (Math.round(r.hold * 100) / 100) +
+            '%';
+          holdEl.title = 'Hold ' + holdEl.textContent;
+          meta.appendChild(holdEl);
+        }
         if (showOtc && r.otcLabel) {
           const move = document.createElement('span');
           const vsTake = (r.againstTake || 0) > 0;
@@ -4059,21 +5383,17 @@
             : withTake
               ? 'Pinny O→C favored this take (lower boost)'
               : 'Pinny open → close';
-          btn.appendChild(move);
+          meta.appendChild(move);
         }
         if (r.ratio != null) {
           const ratio = document.createElement('span');
-          const tier = role === 'fav' ? 'lo' : r.ratio >= 5 ? 'hi' : 'mid';
+          const tier = takeRecRatioTier(r.ratio);
           ratio.className = 'pc-tr-ratio ' + tier;
           ratio.textContent = fmtRatioChip(r.ratio);
-          btn.appendChild(ratio);
+          meta.appendChild(ratio);
         }
-        if (r.agree != null) {
-          const ag = document.createElement('span');
-          ag.className = 'pc-tr-agree';
-          ag.textContent = r.agree + '%';
-          btn.appendChild(ag);
-        }
+        btn.appendChild(main);
+        btn.appendChild(meta);
         sec.appendChild(btn);
       }
     }
@@ -4120,71 +5440,77 @@
     tools.appendChild(boostBtn);
     next.appendChild(tools);
 
-    const favLabel = recs.requireRatio
-      ? recs.steamBoost
-        ? 'Take fav · ratio < 1 · O→C boost'
-        : 'Take fav · ratio < 1'
-      : recs.steamBoost
-        ? 'Take fav · O→C boost'
-        : 'Take fav';
-    const dogLabel = recs.requireRatio
-      ? recs.steamBoost
-        ? 'Take dog · fav ≥ 2 · O→C boost'
-        : 'Take dog · fav ratio ≥ 2'
-      : recs.steamBoost
-        ? 'Take dog · O→C boost'
-        : 'Take dog';
+    const favLabel = recs.steamBoost
+      ? 'Take X FAV · hold ≥+1.5% · ratio <1 · O→C'
+      : 'Take X FAV · hold ≥+1.5% · ratio <1';
+    const dogLabel = recs.steamBoost
+      ? 'Take X DOG · hold ≤+0.5% · ratio ≤ fav · O→C'
+      : 'Take X DOG · hold ≤+0.5% · ratio ≤ fav';
     const emptyTxt = 'None right now';
-    // Dogs first when steam-boosting (adverse dog steam is the main use case)
+    // Dogs first (tight/arb hold is the main use case)
     if (recs.steamBoost) {
       renderTakeRecSection(next, dogLabel, 'dog', recs.dogs, emptyTxt, true);
       renderTakeRecSection(next, favLabel, 'fav', recs.favs, emptyTxt, true);
     } else {
-      renderTakeRecSection(next, favLabel, 'fav', recs.favs, emptyTxt, false);
       renderTakeRecSection(next, dogLabel, 'dog', recs.dogs, emptyTxt, false);
+      renderTakeRecSection(next, favLabel, 'fav', recs.favs, emptyTxt, false);
     }
     body.textContent = '';
     body.appendChild(next);
   }
 
-  let takeRecStrengthGen = 0;
+  function scheduleTakeRecRefresh(ms) {
+    if (!TAKE_REC_PANEL_ENABLED || !IS_4C) return;
+    if (takeRecRefreshTimer) clearTimeout(takeRecRefreshTimer);
+    takeRecRefreshTimer = setTimeout(() => {
+      takeRecRefreshTimer = 0;
+      refreshTakeRecPanel();
+    }, ms == null ? 180 : ms);
+  }
+
   function refreshTakeRecPanel() {
-    if (!IS_4C) return;
+    if (!IS_4C || !TAKE_REC_PANEL_ENABLED) {
+      const old = document.getElementById(TAKE_REC_UI_ID);
+      if (old) old.remove();
+      takeRecLastFp = '';
+      return;
+    }
     const wrap = ensureTakeRecUi();
     if (!wrap) return;
     const body = wrap.querySelector('.pc-tr-body');
     if (!body) return;
+    const collapsed = wrap.classList.contains('pc-tr-collapsed');
     const recs = collectTakeRatioRecs({ steamBoost: takeRecSteamBoost });
-    attachStrengthToRecs(recs);
     const n = (recs.favs.length || 0) + (recs.dogs.length || 0);
     const title = wrap.querySelector('.pc-tr-title');
     const sub = wrap.querySelector('.pc-tr-sub');
     if (title) title.textContent = n ? 'Take picks · ' + n : 'Take picks';
     if (sub) {
       if (recs.steamBoost) {
-        sub.textContent = recs.requireRatio
-          ? 'O→C steam boost · farthest from favorable first'
-          : 'O→C steam boost · open ZCode for ratios';
+        sub.textContent = 'O→C · Take DOG ≤+0.5 · Take FAV ≥+1.5 + ratio<1';
+      } else if (!recs.zFresh) {
+        sub.textContent = 'Take DOG ≤+0.5 · Take FAV needs ratio<1';
       } else {
-        sub.textContent = recs.requireRatio
-          ? 'Take ∩ ZCode · record /10'
-          : 'Takes · record /10';
+        sub.textContent = 'Take DOG ≤+0.5 · Take FAV ≥+1.5 + ratio<1';
       }
     }
+    // Collapsed: title count only — no DOM rebuild / ATS work.
+    if (collapsed) {
+      takeRecLastFp = '';
+      return;
+    }
+    const fp = takeRecFingerprint(recs) + '|exp';
+    if (fp === takeRecLastFp && body.childNodes.length) return;
+    takeRecLastFp = fp;
+    // Cache-only ATS (no ESPN storm from the panel).
+    attachStrengthToRecs(recs);
     const headZ = wrap.querySelector('.pc-tr-zcode-head');
     if (headZ) {
       const sports = boardZcodeSportsNeeded();
-      headZ.textContent = 'Open Zcode';
       headZ.title =
         'Open ZCode for ' + (sports.length ? sports.join(' + ') : 'this board');
     }
     paintTakeRecBody(body, recs);
-    const gen = ++takeRecStrengthGen;
-    ensureStrengthForRecs(recs).then(() => {
-      if (gen !== takeRecStrengthGen) return;
-      if (!document.getElementById(TAKE_REC_UI_ID)) return;
-      paintTakeRecBody(body, recs);
-    });
   }
 
   function getGithubConfig() {
@@ -4589,7 +5915,6 @@
       }
       if (nextGraded || (Number(s.at) || 0) >= (Number(prev.at) || 0)) {
         if (!nextGraded && prev) {
-          // Keep prior line if a newer ungraded board snap omitted it.
           if (s.spread == null && prev.spread != null) s.spread = prev.spread;
           if (s.awayLine == null && prev.awayLine != null) s.awayLine = prev.awayLine;
           if (s.homeLine == null && prev.homeLine != null) s.homeLine = prev.homeLine;
@@ -4600,18 +5925,71 @@
     return pruneRollingHourSnaps(Array.from(byKey.values()));
   }
 
+  /** NBA nicknames — used to keep college games on basketball/All out of the NBA bucket. */
+  const NBA_NICK_RE =
+    /\b(hawks|celtics|nets|hornets|bulls|cavaliers?|mavericks|nuggets|pistons|warriors|rockets|pacers|clippers|lakers|grizzlies|heat|bucks|timberwolves|pelicans|knicks|thunder|magic|76ers|sixers|suns|trail\s*blazers|blazers|kings|spurs|raptors|jazz|wizards)\b/i;
+
+  function looksLikeNbaTeams(teams) {
+    if (!Array.isArray(teams) || teams.length < 2) return false;
+    let hits = 0;
+    for (let i = 0; i < teams.length; i++) {
+      if (NBA_NICK_RE.test(String(teams[i] || ''))) hits++;
+    }
+    return hits >= 2;
+  }
+
+  function looksLikeSoccerLeague(league) {
+    const lg = String(league || '');
+    if (!lg) return false;
+    if (
+      /CHAMPIONS\s*LEAGUE|EUROPA\s*LEAGUE|CONFERENCE\s*LEAGUE|PREMIER\s*LEAGUE|LA\s*LIGA|SERIE\s*A|LIGUE\s*1|BUNDESLIGA|EREDIVISIE|PRIMEIRA|JUPILER|BRASILEIR|SERIE\s*B|MLS\b|LIGA\s*MX|PRIMERA|SUPER\s*LIG|SUPERLIGA|ALLSVENSKAN|ELITESERIEN|J\.?\s*LEAGUE|K\s*LEAGUE|A-?LEAGUE|SCOTTISH\s*PREM|SUPER\s*LEAGUE|NATIONS\s*LEAGUE|COPA\s|CHAMPIONSHIP|LEAGUE\s*ONE|LEAGUE\s*1\b|HNL\b|EKSTRAKLASA|NB\s*1|USL\b|CANADIAN\s*PREM/i.test(
+        lg
+      )
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   function sportKeyFromSnap(s) {
     const league = String((s && s.league) || '').toUpperCase();
     const sport = String((s && s.sport) || '').toLowerCase();
+    if (sport === 'soccer' || sport === 'football-soccer' || sport === 'football soccer') {
+      return 'SOCCER';
+    }
+    if (looksLikeSoccerLeague(league) && sport !== 'football' && sport !== 'nfl' && sport !== 'ncaaf') {
+      return 'SOCCER';
+    }
     if (/MLB|SERIES/i.test(league) || sport === 'baseball' || sport === 'mlb') return 'MLB';
     if (/NHL/i.test(league) || sport === 'hockey' || sport === 'nhl') return 'NHL';
     // League-specific BEFORE generic sport: /football/ncaaf stores sport="football"
     if (/NCAAF|CFB/i.test(league) || sport === 'ncaaf') return 'NCAAF';
-    if (/NCAAB|CBB/i.test(league) || sport === 'ncaab') return 'NCAAB';
+    // New-season / All-board labels: NCAA, College Basketball, MBB, CBB, …
+    if (
+      /NCAAB|CBB|\bMBB\b|NCAA\s*B\b|NCAA\s*BASKET|COLLEGE\s*BASKET|MEN'?S\s*BASKET|MEN'?S\s*COLLEGE/i.test(
+        league
+      ) ||
+      sport === 'ncaab' ||
+      sport === 'cbb'
+    ) {
+      return 'NCAAB';
+    }
     if (/WNBA/i.test(league) || sport === 'wnba') return 'WNBA';
     if (/NFL/i.test(league) || sport === 'football' || sport === 'nfl') return 'NFL';
     // \bNBA\b so "NBA Cup" / "NBA IST" count as NBA (WNBA already returned above)
-    if (/\bNBA\b/i.test(league) || sport === 'basketball' || sport === 'nba') return 'NBA';
+    if (/\bNBA\b/i.test(league) || sport === 'basketball' || sport === 'nba') {
+      // Basketball All board with missing/odd .lg: college teams → NCAAB, not NBA.
+      if (
+        !/\bNBA\b/i.test(league) &&
+        (sport === 'basketball' || sport === 'nba' || !sport) &&
+        Array.isArray(s && s.teams) &&
+        s.teams.length >= 2 &&
+        !looksLikeNbaTeams(s.teams)
+      ) {
+        return 'NCAAB';
+      }
+      return 'NBA';
+    }
     return null;
   }
 
@@ -4619,6 +5997,8 @@
   function sportKeysToTry(s) {
     const k = sportKeyFromSnap(s);
     if (k) return [k];
+    const sport = String((s && s.sport) || '').toLowerCase();
+    if (sport === 'soccer' || looksLikeSoccerLeague((s && s.league) || '')) return ['SOCCER'];
     return ['NHL', 'MLB', 'NFL', 'NBA', 'NCAAF', 'NCAAB', 'WNBA'];
   }
 
@@ -4631,6 +6011,70 @@
     WNBA: 'basketball/wnba',
     NCAAB: 'basketball/mens-college-basketball',
   };
+
+  /** 4C soccer tour labels → ESPN soccer league slug (unknown still try ESPN all + other sources). */
+  function espnSoccerSlug(league) {
+    const lg = String(league || '')
+      .toLowerCase()
+      .replace(/['’]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!lg) return null;
+    const rows = [
+      [/champions league/, 'uefa.champions'],
+      [/europa conference|conference league/, 'uefa.europa.conf'],
+      [/europa league/, 'uefa.europa'],
+      [/nations league/, 'uefa.nations'],
+      [/premier league/, 'eng.1'],
+      [/\bchampionship\b/, 'eng.2'],
+      [/league one|england league 1/, 'eng.3'],
+      [/la liga 2/, 'esp.2'],
+      [/la liga/, 'esp.1'],
+      [/brasileir|brazil serie a/, 'bra.1'],
+      [/brazil serie b/, 'bra.2'],
+      [/serie a/, 'ita.1'],
+      [/serie b/, 'ita.2'],
+      [/ligue 2/, 'fra.2'],
+      [/ligue 1/, 'fra.1'],
+      [/2\.?\s*bundesliga/, 'ger.2'],
+      [/bundesliga/, 'ger.1'],
+      [/eredivisie/, 'ned.1'],
+      [/jupiler/, 'bel.1'],
+      [/primeira liga/, 'por.1'],
+      [/\bmls\b/, 'usa.1'],
+      [/liga mx/, 'mex.1'],
+      [/argentina primera/, 'arg.1'],
+      [/peru primera/, 'per.1'],
+      [/colombia primera/, 'col.1'],
+      [/ecuador serie a/, 'ecu.1'],
+      [/paraguay/, 'par.1'],
+      [/chile primera/, 'chi.1'],
+      [/bolivia/, 'bol.1'],
+      [/\bj\.?\s*league/, 'jpn.1'],
+      [/k league/, 'kor.1'],
+      [/a league/, 'aus.1'],
+      [/super lig|süper lig/, 'tur.1'],
+      [/ekstraklasa/, 'pol.1'],
+      [/eliteserien/, 'nor.1'],
+      [/allsvenskan/, 'swe.1'],
+      [/scottish prem/, 'sco.1'],
+      [/switzerland super/, 'sui.1'],
+      [/austria bundesliga/, 'aut.1'],
+      [/danish superliga/, 'den.1'],
+      [/greece super/, 'gre.1'],
+      [/hungary nb/, 'hun.1'],
+      [/croatia hnl/, 'cro.1'],
+      [/russian premier/, 'rus.1'],
+      [/saudi/, 'ksa.1'],
+      [/china super/, 'chn.1'],
+      [/usl championship/, 'usa.usl.1'],
+      [/canadian premier/, 'can.1'],
+    ];
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i][0].test(lg)) return rows[i][1];
+    }
+    return null;
+  }
 
   /** Board abbrevs that differ from ESPN (TBL↔TB, SJS↔SJ, …). */
   const BL_ABBR_ALIASES = {
@@ -4738,13 +6182,17 @@
     );
   }
 
-  async function fetchEspnScoreboard(sportKey, dateCompact) {
-    const path = ESPN_SPORT_PATH[sportKey];
+  async function fetchEspnScoreboard(sportKey, dateCompact, soccerSlug) {
+    let path = ESPN_SPORT_PATH[sportKey];
+    if (sportKey === 'SOCCER') {
+      if (!soccerSlug) return [];
+      path = 'soccer/' + soccerSlug;
+    }
     if (!path || !dateCompact) return [];
     let url =
       'https://site.api.espn.com/apis/site/v2/sports/' + path + '/scoreboard?dates=' + dateCompact;
-    if (sportKey === 'NCAAF') url += '&groups=80';
-    if (sportKey === 'NCAAB') url += '&groups=50';
+    if (sportKey === 'NCAAF') url += '&groups=80&limit=500';
+    if (sportKey === 'NCAAB') url += '&groups=50&limit=500';
     const res = await gmRequest({ method: 'GET', url: url, timeout: 30000 });
     if (res.status < 200 || res.status >= 300) return [];
     let j;
@@ -4810,7 +6258,294 @@
   }
 
   function isEspnPostponedStatus(status) {
-    return /postpon|cancel|suspend|washout/i.test(String(status || ''));
+    return /postpon|cancel|suspend|washout|abandoned/i.test(String(status || ''));
+  }
+
+  const SCOREBOARD_MEMO = new Map();
+  const SCOREBOARD_MEMO_MS = 8 * 60 * 1000;
+
+  async function memoScoreboard(key, fn) {
+    const now = Date.now();
+    const prev = SCOREBOARD_MEMO.get(key);
+    if (prev && now - prev.at < SCOREBOARD_MEMO_MS) return prev.events;
+    let events = [];
+    try {
+      events = await fn();
+    } catch (_) {
+      if (prev) return prev.events;
+      events = [];
+    }
+    SCOREBOARD_MEMO.set(key, { at: now, events: events });
+    return events;
+  }
+
+  function soccerLooseCanon(s) {
+    return String(canonTeam(s) || '')
+      .replace(/\b(fc|cf|sc|ac|afc|ssc|cd|ca|fk|sk|bk|if|ud|ad|rcd|rc)\b/g, ' ')
+      .replace(/\b(club|clube|de|da|do|the)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function matchScoreEventForSnap(s, events) {
+    const direct = matchEspnEventForSnap(s, events);
+    if (direct) return direct;
+    const teams = Array.isArray(s.teams) ? s.teams : [];
+    if (teams.length < 2) return null;
+    const a = soccerLooseCanon(teams[0]);
+    const h = soccerLooseCanon(teams[1]);
+    if (!a || !h) return null;
+    for (let j = 0; j < events.length; j++) {
+      const e = events[j];
+      const ea = soccerLooseCanon(e.awayCanon) || soccerLooseCanon(e.awayShort) || soccerLooseCanon(e.awayAbbr);
+      const eh = soccerLooseCanon(e.homeCanon) || soccerLooseCanon(e.homeShort) || soccerLooseCanon(e.homeAbbr);
+      if (ea && eh && blNameMatch(a, ea) && blNameMatch(h, eh)) return { ev: e, orient: 'ah' };
+      if (ea && eh && blNameMatch(a, eh) && blNameMatch(h, ea)) return { ev: e, orient: 'ha' };
+    }
+    return null;
+  }
+
+  function applyMatchedScore(s, hit, drop) {
+    const ev = hit && hit.ev;
+    if (!ev) return false;
+    if (!ev.completed) {
+      if (isEspnPostponedStatus(ev.status)) {
+        drop.add(s);
+        return false;
+      }
+      if (ev.status) s.status = ev.status;
+      return false;
+    }
+    if (ev.awayScore == null || ev.homeScore == null) return false;
+    s.awayScore = ev.awayScore;
+    s.homeScore = ev.homeScore;
+    s.status = ev.status || 'Final';
+
+    if (ev.awayScore === ev.homeScore) {
+      s.winnerTeamIdx = 'void';
+    } else {
+      const awayWon = ev.awayScore > ev.homeScore;
+      s.winnerTeamIdx = hit.orient === 'ah' ? (awayWon ? 0 : 1) : awayWon ? 1 : 0;
+    }
+
+    if (!blApplyCoverGrade(s, ev.awayScore, ev.homeScore, hit.orient)) {
+      return false;
+    }
+    s.gradedAt = Date.now();
+    return true;
+  }
+
+  function parseFourCBoardScoreEvent(gameEl) {
+    if (!gameEl) return null;
+    const scoreEl = gameEl.querySelector(':scope > .cGame .score, :scope > .cGame b.score');
+    if (!scoreEl) return null;
+    const raw = String(scoreEl.textContent || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const m = raw.match(/(\d+)\s*[-–—:/]\s*(\d+)/);
+    if (!m) return null;
+    const tEl = gameEl.querySelector(
+      ':scope > .cGame .tStar .t, :scope > .cGame .when .t, :scope > .cGame span.t'
+    );
+    const timeText = String((tEl && tEl.textContent) || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const status = timeText || raw;
+    if (isEspnPostponedStatus(status)) {
+      return {
+        completed: false,
+        status: status,
+        awayCanon: '',
+        homeCanon: '',
+        awayAbbr: '',
+        homeAbbr: '',
+        awayShort: '',
+        homeShort: '',
+        awayScore: null,
+        homeScore: null,
+      };
+    }
+    if (!/\b(ft|aet|final|ended|full.?time|pen(?:alty)?s?)\b/i.test(status)) return null;
+    const teams = gameTeamNames(gameEl);
+    const a = Number(m[1]);
+    const h = Number(m[2]);
+    if (!Number.isFinite(a) || !Number.isFinite(h)) return null;
+    return {
+      completed: true,
+      status: status || 'FT',
+      awayCanon: canonTeam(teams[0] || ''),
+      homeCanon: canonTeam(teams[1] || ''),
+      awayAbbr: '',
+      homeAbbr: '',
+      awayShort: canonTeam(teams[0] || ''),
+      homeShort: canonTeam(teams[1] || ''),
+      awayScore: a,
+      homeScore: h,
+    };
+  }
+
+  function matchBoardScoreForSnap(s) {
+    if (!IS_4C || typeof tradBoardGames !== 'function') return null;
+    const games = tradBoardGames();
+    const id = String((s && s.id) || '');
+    let el = null;
+    if (id) {
+      for (let i = 0; i < games.length; i++) {
+        if (gameIdFromEl(games[i]) === id) {
+          el = games[i];
+          break;
+        }
+      }
+    }
+    if (el) {
+      const ev = parseFourCBoardScoreEvent(el);
+      if (ev) return matchScoreEventForSnap(s, [ev]) || { ev: ev, orient: 'ah' };
+    }
+    const events = [];
+    for (let i = 0; i < games.length; i++) {
+      const ev = parseFourCBoardScoreEvent(games[i]);
+      if (ev) events.push(ev);
+    }
+    return matchScoreEventForSnap(s, events);
+  }
+
+  function gmJson(url) {
+    return gmRequest({
+      method: 'GET',
+      url: url,
+      timeout: 30000,
+      headers: { Accept: 'application/json' },
+    }).then((res) => {
+      if (res.status < 200 || res.status >= 300) return null;
+      try {
+        return JSON.parse(res.responseText);
+      } catch (_) {
+        return null;
+      }
+    });
+  }
+
+  function normScoreEvent(opts) {
+    const awayScore = Number(opts.awayScore);
+    const homeScore = Number(opts.homeScore);
+    return {
+      completed: !!opts.completed,
+      status: opts.status || '',
+      awayCanon: canonTeam(opts.awayName || ''),
+      homeCanon: canonTeam(opts.homeName || ''),
+      awayAbbr: canonTeam(opts.awayAbbr || ''),
+      homeAbbr: canonTeam(opts.homeAbbr || ''),
+      awayShort: canonTeam(opts.awayShort || opts.awayName || ''),
+      homeShort: canonTeam(opts.homeShort || opts.homeName || ''),
+      awayScore: Number.isFinite(awayScore) ? awayScore : null,
+      homeScore: Number.isFinite(homeScore) ? homeScore : null,
+    };
+  }
+
+  async function fetchFotmobSoccer(dateCompact) {
+    if (!dateCompact) return [];
+    const urls = [
+      'https://www.fotmob.com/api/data/matches?date=' +
+        dateCompact +
+        '&timezone=' +
+        encodeURIComponent('America/New_York'),
+      'https://www.fotmob.com/api/matches?date=' + dateCompact,
+    ];
+    for (let u = 0; u < urls.length; u++) {
+      const j = await gmJson(urls[u]);
+      const leagues = (j && (j.leagues || (j.data && j.data.leagues))) || [];
+      if (!leagues.length) continue;
+      const out = [];
+      leagues.forEach((lg) => {
+        (lg.matches || []).forEach((m) => {
+          const home = m.home || {};
+          const away = m.away || {};
+          const st = m.status || {};
+          const reason = (st.reason && (st.reason.short || st.reason.long)) || '';
+          const status = reason || st.scoreStr || '';
+          const cancelled = !!(st.cancelled || isEspnPostponedStatus(status) || isEspnPostponedStatus(reason));
+          const homeScore = home.score != null ? Number(home.score) : Number(m.homeScore);
+          const awayScore = away.score != null ? Number(away.score) : Number(m.awayScore);
+          out.push(
+            normScoreEvent({
+              completed: !!st.finished && !cancelled,
+              status: cancelled ? status || 'Cancelled' : status || (st.finished ? 'FT' : ''),
+              awayName: away.longName || away.name,
+              homeName: home.longName || home.name,
+              awayShort: away.name,
+              homeShort: home.name,
+              awayScore: awayScore,
+              homeScore: homeScore,
+            })
+          );
+        });
+      });
+      if (out.length) return out;
+    }
+    return [];
+  }
+
+  async function fetchLivescoreSoccer(dateCompact) {
+    if (!dateCompact) return [];
+    const j = await gmJson(
+      'https://prod-cdn-public-api.livescore.com/v1/api/app/date/soccer/' + dateCompact + '/1?timezone=-5'
+    );
+    const stages = (j && j.Stages) || [];
+    const out = [];
+    stages.forEach((stage) => {
+      (stage.Events || []).forEach((ev) => {
+        const home = (ev.T1 && ev.T1[0] && ev.T1[0].Nm) || '';
+        const away = (ev.T2 && ev.T2[0] && ev.T2[0].Nm) || '';
+        const eps = String(ev.Eps || '');
+        const postponed = isEspnPostponedStatus(eps) || /^(Postp|Canc|Abd|Susp)$/i.test(eps);
+        const completed = /^(FT|AET|Pen|AP)$/i.test(eps);
+        out.push(
+          normScoreEvent({
+            completed: completed && !postponed,
+            status: postponed ? eps || 'Postponed' : eps,
+            awayName: away,
+            homeName: home,
+            awayScore: ev.Tr2,
+            homeScore: ev.Tr1,
+          })
+        );
+      });
+    });
+    return out;
+  }
+
+  async function fetchSportsDbSoccer(dateCompact) {
+    if (!dateCompact || String(dateCompact).length !== 8) return [];
+    const iso =
+      String(dateCompact).slice(0, 4) +
+      '-' +
+      String(dateCompact).slice(4, 6) +
+      '-' +
+      String(dateCompact).slice(6, 8);
+    const j = await gmJson(
+      'https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=' + encodeURIComponent(iso) + '&s=Soccer'
+    );
+    const out = [];
+    (j && j.events ? j.events : []).forEach((ev) => {
+      const status = String(ev.strStatus || '');
+      const postponed =
+        String(ev.strPostponed || '').toLowerCase() === 'yes' || isEspnPostponedStatus(status);
+      const live = /^(ns|not started)$/i.test(status) || /\b(1h|2h|ht|live|in play|half)\b/i.test(status);
+      const awayScore = Number(ev.intAwayScore);
+      const homeScore = Number(ev.intHomeScore);
+      const hasScores = Number.isFinite(awayScore) && Number.isFinite(homeScore);
+      out.push(
+        normScoreEvent({
+          completed: !postponed && hasScores && !live,
+          status: postponed ? status || 'Postponed' : status || (hasScores ? 'FT' : ''),
+          awayName: ev.strAwayTeam,
+          homeName: ev.strHomeTeam,
+          awayScore: awayScore,
+          homeScore: homeScore,
+        })
+      );
+    });
+    return out;
   }
 
   async function gradeSnapsWithEspn(snaps) {
@@ -4830,57 +6565,66 @@
     const cache = new Map();
     let graded = 0;
     const drop = new Set();
+
+    async function cached(ck, loader) {
+      if (!cache.has(ck)) {
+        try {
+          cache.set(ck, await memoScoreboard(ck, loader));
+        } catch (_) {
+          cache.set(ck, []);
+        }
+      }
+      return cache.get(ck) || [];
+    }
+
     for (let i = 0; i < need.length; i++) {
       const s = need[i];
       const sportKeys = sportKeysToTry(s);
       const days = daysToTryForSnap(s);
       if (!sportKeys.length || !days.length) continue;
+      const isSoccer = sportKeys.indexOf('SOCCER') >= 0;
 
-      let hit = null;
+      let hit = isSoccer ? matchBoardScoreForSnap(s) : null;
+
       for (let si = 0; si < sportKeys.length && !hit; si++) {
         const sportKey = sportKeys[si];
-        for (let di = 0; di < days.length && !hit; di++) {
-          const day = days[di];
-          const ck = sportKey + '|' + day;
-          if (!cache.has(ck)) {
-            try {
-              cache.set(ck, await fetchEspnScoreboard(sportKey, day));
-            } catch (_) {
-              cache.set(ck, []);
-            }
+        const soccerSlugs = [];
+        if (sportKey === 'SOCCER') {
+          const mapped = espnSoccerSlug(s.league);
+          if (mapped) soccerSlugs.push(mapped);
+          soccerSlugs.push('all');
+        } else {
+          soccerSlugs.push(null);
+        }
+        for (let gi = 0; gi < soccerSlugs.length && !hit; gi++) {
+          const soccerSlug = soccerSlugs[gi];
+          for (let di = 0; di < days.length && !hit; di++) {
+            const day = days[di];
+            const ck = 'espn|' + sportKey + '|' + (soccerSlug || '') + '|' + day;
+            const events = await cached(ck, () => fetchEspnScoreboard(sportKey, day, soccerSlug));
+            hit = matchScoreEventForSnap(s, events);
           }
-          const matched = matchEspnEventForSnap(s, cache.get(ck) || []);
-          if (matched) hit = matched;
+        }
+      }
+
+      if (!hit && isSoccer) {
+        const loaders = [
+          ['fotmob', fetchFotmobSoccer],
+          ['livescore', fetchLivescoreSoccer],
+          ['sportsdb', fetchSportsDbSoccer],
+        ];
+        for (let li = 0; li < loaders.length && !hit; li++) {
+          for (let di = 0; di < days.length && !hit; di++) {
+            const day = days[di];
+            const ck = loaders[li][0] + '|' + day;
+            const events = await cached(ck, () => loaders[li][1](day));
+            hit = matchScoreEventForSnap(s, events);
+          }
         }
       }
 
       if (!hit) continue;
-      const ev = hit.ev;
-      if (!ev.completed) {
-        if (isEspnPostponedStatus(ev.status)) {
-          drop.add(s);
-          continue;
-        }
-        if (ev.status) s.status = ev.status;
-        continue;
-      }
-      if (ev.awayScore == null || ev.homeScore == null) continue;
-      s.awayScore = ev.awayScore;
-      s.homeScore = ev.homeScore;
-      s.status = ev.status || 'Final';
-
-      if (ev.awayScore === ev.homeScore) {
-        s.winnerTeamIdx = 'void';
-      } else {
-        const awayWon = ev.awayScore > ev.homeScore;
-        // orient ah: snap[0]=away; ha: snap[0]=home
-        s.winnerTeamIdx = hit.orient === 'ah' ? (awayWon ? 0 : 1) : awayWon ? 1 : 0;
-      }
-
-      if (blApplyCoverGrade(s, ev.awayScore, ev.homeScore, hit.orient)) {
-        s.gradedAt = Date.now();
-        graded++;
-      }
+      if (applyMatchedScore(s, hit, drop)) graded++;
     }
     if (drop.size) {
       for (let i = snaps.length - 1; i >= 0; i--) {
@@ -5008,12 +6752,16 @@
             if (IS_4C && !board.length) {
               const games = tradBoardGames().length;
               if (games) {
+                const ri = routeInfo();
+                const onSoccer = String((ri.sport || ri.board || '')).toLowerCase() === 'soccer';
                 msg +=
                   ' · board ' +
                   games +
                   ' games, 0 eligible (need ≥' +
-                  BOOK_LEAGUE_MIN_Y +
-                  ' books priced, start <18h)';
+                  (onSoccer ? BOOK_LEAGUE_MIN_Y_SOCCER : BOOK_LEAGUE_MIN_Y) +
+                  ' books priced, start <' +
+                  (onSoccer ? '36' : '18') +
+                  'h)';
               }
             }
             setBookLeagueStatus(msg);
@@ -5099,30 +6847,63 @@
     }, ms == null ? 400 : ms);
   }
 
+  function boardOddsFp() {
+    const games = tradBoardGames();
+    let s = String(games.length);
+    for (let i = 0; i < games.length; i++) {
+      const g = games[i];
+      s += '\n' + (g.getAttribute('data-game') || g.id || i);
+      const hold = g.querySelector(':scope > .cell.cHold');
+      if (hold) s += '|' + String(hold.textContent || '').trim();
+    }
+    return s;
+  }
+
   function paintBoard() {
     painting = true;
+    boardGamesCache = null;
+    lastPaintAt = Date.now();
     try {
       ensureStyle();
+      stripLegacyOverlayNodes();
       ensureBookLeagueUi();
-      ensureTakeRecUi();
+      if (TAKE_REC_PANEL_ENABLED) ensureTakeRecUi();
+      else {
+        const old = document.getElementById(TAKE_REC_UI_ID);
+        if (old) old.remove();
+      }
       ensureBasketballAllChip();
       ensureDefaultMarket();
       ensureOpenerOn();
-      clearTdrMarks();
+      boardGamesCache = tradBoardGames();
       markPriceRanksOnTradBoard();
       markZcodeRatioChips();
-      refreshTakeRecPanel();
+      markHoldGlows();
+      // Coalesce take-panel rebuilds during load storms.
+      if (TAKE_REC_PANEL_ENABLED) {
+        const storm = Date.now() < moBurstWindowAt && moBurstHits > 10;
+        scheduleTakeRecRefresh(storm ? 600 : 120);
+      }
     } finally {
+      boardGamesCache = null;
       painting = false;
     }
   }
 
   function scheduleBoardPaint(ms) {
     if (paintTimer) clearTimeout(paintTimer);
+    const storm = Date.now() < moBurstWindowAt && moBurstHits > 10;
+    const minGap = storm ? 700 : DISPLAY_TDR_RANKS ? 360 : 480;
+    const wait = ms == null ? (storm ? 320 : 180) : ms;
     paintTimer = setTimeout(() => {
       paintTimer = 0;
+      const since = Date.now() - lastPaintAt;
+      if (painting || since < minGap) {
+        scheduleBoardPaint(Math.max(60, minGap - since));
+        return;
+      }
       paintBoard();
-    }, ms == null ? 80 : ms);
+    }, wait);
   }
 
   function boot4c() {
@@ -5132,31 +6913,55 @@
     document.addEventListener(
       'click',
       (e) => {
-        if (marketAutoClick) return;
         const t = e && e.target;
         if (!t || !t.closest) return;
-        const btn = t.closest(
-          '.seg[aria-label="Market"] .segBtn, [role="tablist"][aria-label="Market"] [role="tab"]'
+        if (!marketAutoClick) {
+          const btn = t.closest(
+            '.seg[aria-label="Market"] .segBtn, [role="tablist"][aria-label="Market"] [role="tab"]'
+          );
+          if (btn) marketUserOverride = true;
+        }
+        if (basketballAllAutoClick) return;
+        const chip = t.closest(
+          'nav.leagueNav a.chip, nav.leagueNav button.chip, .leagueNav a.chip, .leagueNav button.chip, .scrollRow.leagues a.chip, .scrollRow.leagues button.chip'
         );
-        if (btn) marketUserOverride = true;
+        if (chip) {
+          const label = String(chip.textContent || '')
+            .replace(/\s+/g, ' ')
+            .trim();
+          const href = String(chip.getAttribute('href') || '')
+            .toLowerCase()
+            .replace(/\/+$/, '');
+          const isAll =
+            /^All\b/i.test(label) || href === '/basketball' || href.endsWith('/basketball');
+          basketballLeagueUserOverride = !isAll;
+        }
       },
       true
     );
 
     try {
       if (typeof GM_addValueChangeListener === 'function') {
+        let zcodeChipSyncTo = 0;
         GM_addValueChangeListener(ZCODE_LIVE_KEY, (_name, oldVal, newVal, remote) => {
-          // Cross-tab write from ZCode → update chips immediately (not a one-shot cache).
           zcodeLiveCache = newVal && Array.isArray(newVal.games) ? newVal : null;
           zcodeLiveCacheAt = Date.now();
           const oldFp = oldVal && oldVal.fp != null ? String(oldVal.fp) : '';
           const newFp = newVal && newVal.fp != null ? String(newVal.fp) : '';
-          if (remote || oldFp !== newFp) {
-            if (oldFp !== newFp || !zcodeLiveFpSeen) {
-              refreshZcodeRatioChipsFromGm();
-              log('ZCode ratios synced', newVal && newVal.gameCount, remote ? '(remote)' : '');
+          const cleared = !(newVal && Array.isArray(newVal.games) && newVal.games.length);
+          if (!(remote || oldFp !== newFp || (cleared && oldFp))) return;
+          if (!cleared && oldFp === newFp && zcodeLiveFpSeen) return;
+          if (zcodeChipSyncTo) clearTimeout(zcodeChipSyncTo);
+          zcodeChipSyncTo = setTimeout(() => {
+            zcodeChipSyncTo = 0;
+            if (refreshZcodeRatioChipsFromGm(true)) {
+              log(
+                cleared ? 'ZCode ratios cleared (tab closed)' : 'ZCode ratios synced',
+                newVal && newVal.gameCount,
+                remote ? '(remote)' : ''
+              );
             }
-          }
+          }, 120);
         });
       }
     } catch (_) {}
@@ -5166,82 +6971,82 @@
     setInterval(() => {
       if (fixBrokenBoardRoute()) return;
       scrubUnknownView();
-      scheduleBoardPaint(0);
-    }, 2500);
-    // Fallback poll if value-change listener misses a write
+      const fp = boardOddsFp();
+      if (fp === lastBoardOddsFp) return;
+      lastBoardOddsFp = fp;
+      dirtyAllGames = true;
+      scheduleBoardPaint(220);
+    }, 10000);
+    // Safety net if a GM change listener is missed — cheap when fp is unchanged.
     setInterval(() => {
-      refreshZcodeRatioChipsFromGm();
-    }, 1500);
+      refreshZcodeRatioChipsFromGm(false);
+    }, ZCODE_POLL_MS);
 
     try {
       let moTimer = 0;
-      const isOwn = (n) => {
-        if (!n || n.nodeType !== 1) return true;
-        if (n.id === STYLE_ID) return true;
-        if (n.id === BOOK_LEAGUE_UI_ID) return true;
-        if (n.id === TAKE_REC_UI_ID) return true;
-        if (n.closest && n.closest('#' + TAKE_REC_UI_ID)) return true;
-        if (
-          n.classList &&
-          (n.classList.contains('pc-price-rank') ||
-            n.classList.contains('pc-zcode-ratio') ||
-            n.classList.contains('pc-circa-take-msg') ||
-            n.classList.contains('pc-bl-title') ||
-            n.classList.contains('pc-bl-meta') ||
-            n.classList.contains('pc-tr-row') ||
-            n.classList.contains('pc-tr-body') ||
-            n.classList.contains('pc-tr-sec') ||
-            n.classList.contains('pc-tr-tog') ||
-            n.classList.contains('pc-tr-zcode-btn') ||
-            n.classList.contains('pc-tr-head'))
-        ) {
-          return true;
-        }
-        return false;
-      };
+      let observedRoot = null;
+      const ownRootSel =
+        '#' +
+        BOOK_LEAGUE_UI_ID +
+        ', #' +
+        TAKE_REC_UI_ID +
+        ', #' +
+        OPEN_ZCODE_UI_ID +
+        ', #' +
+        STYLE_ID;
+      const boardObserveRoot = () =>
+        document.querySelector('.gTable') ||
+        document.querySelector('section.trad') ||
+        document.querySelector('.boardPane.trad') ||
+        document.getElementById('app') ||
+        document.body;
       const mo = new MutationObserver((muts) => {
         if (painting) return;
+        let hit = false;
+        const now = Date.now();
+        if (now - moBurstWindowAt > 1000) {
+          moBurstHits = 0;
+          moBurstWindowAt = now + 1000;
+        }
         for (let i = 0; i < muts.length; i++) {
           const m = muts[i];
-          const lists = [m.addedNodes, m.removedNodes];
-          for (let li = 0; li < lists.length; li++) {
-            const nodes = lists[li];
-            for (let j = 0; j < (nodes ? nodes.length : 0); j++) {
-              const n = nodes[j];
-              if (!n || n.nodeType !== 1) {
-                if (n && n.nodeType === 3) {
-                  if (moTimer) clearTimeout(moTimer);
-                  moTimer = setTimeout(() => {
-                    moTimer = 0;
-                    scheduleBoardPaint(80);
-                  }, 120);
-                }
-                continue;
-              }
-              if (isOwn(n)) continue;
-              if (n.classList && n.classList.contains('pc-circa-take-msg')) {
-                continue;
-              }
-              // Ignore line-history modal entirely — never touch it.
-              if (
-                n.closest &&
-                n.closest('.hm, .hmBody, .mtable, .modal.wide[aria-label="Line history"]')
-              ) {
-                continue;
-              }
-              if (moTimer) clearTimeout(moTimer);
-              moTimer = setTimeout(() => {
-                moTimer = 0;
-                scrubUnknownView();
-                scheduleBoardPaint(80);
-              }, 120);
-            }
+          const t = m && m.target;
+          const el = t && (t.nodeType === 1 ? t : t.parentElement);
+          if (!el || !el.closest) continue;
+          if (el.closest(ownRootSel)) continue;
+          if (el.closest('.hm, .hmBody, .mtable, .modal.wide[aria-label="Line history"]')) {
+            continue;
+          }
+          if (!el.closest('.gRow.gGame, .gTable, section.trad, .boardPane.trad')) continue;
+          const game = el.closest('.gRow.gGame[data-game]');
+          if (game && !dirtyAllGames) dirtyGames.add(game);
+          else dirtyAllGames = true;
+          hit = true;
+          moBurstHits++;
+          // Prefer per-game dirties while streaming; only escalate after a big burst.
+          if (dirtyGames.size > 24 || moBurstHits > 40) {
+            dirtyAllGames = true;
+            dirtyGames.clear();
+            break;
           }
         }
+        if (!hit) return;
+        if (moTimer) clearTimeout(moTimer);
+        const storm = moBurstHits > 10;
+        moTimer = setTimeout(() => {
+          moTimer = 0;
+          scrubUnknownView();
+          scheduleBoardPaint(storm ? 420 : 180);
+        }, storm ? 650 : 280);
       });
       const start = () => {
-        const root = document.getElementById('app') || document.body;
+        const root = boardObserveRoot();
         if (!root) return false;
+        if (observedRoot === root) return true;
+        try {
+          mo.disconnect();
+        } catch (_) {}
+        observedRoot = root;
         mo.observe(root, { childList: true, subtree: true });
         return true;
       };
@@ -5249,6 +7054,8 @@
         const w = setInterval(() => {
           if (start()) clearInterval(w);
         }, 500);
+      } else {
+        setInterval(start, 4000);
       }
     } catch (_) {}
 
@@ -5259,12 +7066,23 @@
       const key = location.pathname + location.search;
       if (key === lastPath) return;
       lastPath = key;
+      lastBoardOddsFp = '';
+      headerBundleCache = { head: null, n: 0, sig: '', codes: [], names: [] };
+      dirtyAllGames = true;
+      dirtyGames.clear();
+      zcodeLiveFpSeen = '';
+      moBurstHits = 0;
       publishFourCSportWant(true);
-      scheduleBoardPaint(100);
-    }, 600);
+      scheduleBoardPaint(80);
+    }, 1500);
 
     ensureBookLeagueUi();
-    ensureTakeRecUi();
+    ensureOpenZcodeBtn();
+    if (TAKE_REC_PANEL_ENABLED) ensureTakeRecUi();
+    else {
+      const old = document.getElementById(TAKE_REC_UI_ID);
+      if (old) old.remove();
+    }
     try {
       if (typeof GM_registerMenuCommand === 'function') {
         GM_registerMenuCommand('Book League: Set GitHub token', promptGithubToken);
@@ -5277,9 +7095,18 @@
         });
       }
     } catch (_) {}
-    scheduleBookLeagueSync(800);
+    // First sync after board has had time to stream prices; still runs while loading.
+    scheduleBookLeagueSync(2500);
     setInterval(() => scheduleBookLeagueSync(0), BOOK_LEAGUE_SYNC_MS);
-    log('Ready (TDR + Take + OTC + ZCode + Book League ATS · v3.11.0)');
+    log(
+      'Ready (TDR ' +
+        (DISPLAY_TDR_RANKS
+          ? 'visible'
+          : DISPLAY_TDR_BL_ENDS
+            ? '2 Best-line · today only'
+            : 'hidden→Book League') +
+        ' · light-load paints · Take · OTC · Zcode · Book League ATS · v3.14.0)'
+    );
   }
 
   function bootBookLeaguePage() {
