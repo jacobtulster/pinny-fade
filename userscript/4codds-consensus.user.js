@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         4C Odds — TDRs only
 // @namespace    https://github.com/local/pinny-fade
-// @version      3.14.2
+// @version      3.14.3
 // @description  TDR badges on today's 2 Best-line books; Take = every game from quadratic BL×gap vote; agree% from margin; OTC; Open Zcode; hold glow; Best vs Pinny ¢; Take picks; Book League ATS/ML cover grades.
 // @author       You
 // @match        https://4codds.com/*
@@ -2922,6 +2922,9 @@ ${bookPxCss}
       rankIndexByCode: rankIndexByCode,
       nameByCode: nameByCode,
       n: rows.length,
+      updatedAt: updatedAt,
+      source: store.source || null,
+      gradedSnaps: countGradedSnaps(store.snaps),
     };
     blStandingsCache.bySport[sportKey] = result;
     return result;
@@ -5591,6 +5594,51 @@ ${bookPxCss}
     return local;
   }
 
+  /** Console / UI proof of what Take standings are reading. */
+  function describeTakeBookLeagueSource() {
+    const local = readLocalBookLeague();
+    const canon = readCanonicalBookLeague();
+    const usingMem =
+      !!(canonicalBookLeagueMem && canon === canonicalBookLeagueMem);
+    const graded = countGradedSnaps(canon.snaps);
+    const localGraded = countGradedSnaps(local.snaps);
+    const src = String((canon && canon.source) || (usingMem ? 'memory' : 'local'));
+    const ok =
+      graded >= 3000 ||
+      /^(github|pages|raw)/i.test(src) ||
+      (usingMem && graded >= localGraded && graded > 0);
+    return {
+      ok: ok,
+      source: src,
+      usingMemory: usingMem,
+      snaps: (canon.snaps || []).length,
+      graded: graded,
+      localSnaps: (local.snaps || []).length,
+      localGraded: localGraded,
+      updatedAt: (canon && canon.updatedAt) || null,
+      summary:
+        'Take BL · ' +
+        src +
+        ' · ' +
+        graded +
+        '/' +
+        (canon.snaps || []).length +
+        ' graded' +
+        (localGraded !== graded ? ' (local GM ' + localGraded + ')' : ''),
+    };
+  }
+
+  function paintTakeBookLeagueSourceStatus(extra) {
+    if (!IS_4C) return;
+    const info = describeTakeBookLeagueSource();
+    const msg = (extra ? extra + ' · ' : '') + info.summary;
+    setBookLeagueStatus(msg, !info.ok);
+    try {
+      window.__pinnyTakeBl = info;
+    } catch (_) {}
+    return info;
+  }
+
   function rememberCanonicalBookLeague(payload) {
     if (!payload || !Array.isArray(payload.snaps)) return;
     const next = {
@@ -6928,18 +6976,21 @@ ${bookPxCss}
       }
 
       if (wroteGh) {
-        setBookLeagueStatus(
+        paintTakeBookLeagueSourceStatus(
           'GitHub · +' +
             lastDue +
-            (lastGraded ? ' · graded ' + lastGraded : '') +
+            (lastGraded ? ' · grade+' + lastGraded : '') +
             ' · ' +
             lastTotal +
-            ' total' +
             (lastRemoteCount && lastRemoteCount !== lastTotal
               ? ' (was ' + lastRemoteCount + ' remote)'
               : '')
         );
         log('Book League synced', '+', lastDue, 'total', lastTotal);
+      } else if (IS_4C) {
+        paintTakeBookLeagueSourceStatus(
+          lastTotal ? 'Synced · ' + lastTotal + ' snaps' : 'Synced'
+        );
       }
       if (IS_4C && TAKE_REC_PANEL_ENABLED) scheduleTakeRecRefresh(200);
     } catch (e) {
@@ -7219,8 +7270,11 @@ ${bookPxCss}
           : DISPLAY_TDR_BL_ENDS
             ? '2 Best-line · today only'
             : 'hidden→Book League') +
-        ' · light-load paints · Take · OTC · Zcode · Book League ATS · v3.14.2)'
+        ' · light-load paints · Take · OTC · Zcode · Book League ATS · v3.14.3)'
     );
+    try {
+      window.__pinnyTakeBlDebug = describeTakeBookLeagueSource;
+    } catch (_) {}
   }
 
   function bootBookLeaguePage() {
