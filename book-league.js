@@ -499,7 +499,12 @@
 
   function gradeLabel(s) {
     if (s.coverTeamIdx === 'void') {
-      const kind = s.gradeKind === 'ml' ? 'ML draw' : 'ATS push';
+      const kind =
+        s.gradeKind === 'ml'
+          ? 'ML draw'
+          : s.gradeKind === 'legacy'
+            ? 'legacy push'
+            : 'ATS push';
       return '<span class="bl-grade pending">' + kind + '</span>';
     }
     const won = favWonSnap(s);
@@ -512,12 +517,18 @@
       }
       return '<span class="bl-grade pending">pending</span>';
     }
-    const kind = s.gradeKind === 'ml' || isMoneylineMarket(s) ? 'ML' : 'ATS';
-    return (
-      '<span class="bl-grade ok">' +
-      (won ? kind + ' fav covered' : kind + ' dog covered') +
-      '</span>'
-    );
+    let kind = 'ATS';
+    if (s.gradeKind === 'legacy') kind = 'legacy';
+    else if (s.gradeKind === 'ml' || isMoneylineMarket(s)) kind = 'ML';
+    const verb =
+      s.gradeKind === 'legacy' || kind === 'ML'
+        ? won
+          ? 'fav won'
+          : 'dog won'
+        : won
+          ? 'fav covered'
+          : 'dog covered';
+    return '<span class="bl-grade ok">' + kind + ' ' + verb + '</span>';
   }
 
   function lineCell(s) {
@@ -531,6 +542,9 @@
       );
     }
     if (isMoneylineMarket(s)) return '<span class="bl-best">ML</span>';
+    if (s.gradeKind === 'legacy') {
+      return '<span class="bl-best" title="No stored line — graded outright">outright</span>';
+    }
     return '—';
   }
 
