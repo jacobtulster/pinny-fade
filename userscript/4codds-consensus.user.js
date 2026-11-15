@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         4C Odds — TDRs only
 // @namespace    https://github.com/local/pinny-fade
-// @version      3.14.3
+// @version      3.14.4
 // @description  TDR badges on today's 2 Best-line books; Take = every game from quadratic BL×gap vote; agree% from margin; OTC; Open Zcode; hold glow; Best vs Pinny ¢; Take picks; Book League ATS/ML cover grades.
 // @author       You
 // @match        https://4codds.com/*
@@ -4161,15 +4161,16 @@ ${bookPxCss}
     return out.sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0));
   }
 
-  /** Drop snaps for games starting more than 18h out (and drop board-visible far games). */
+  /**
+   * Drop only FUTURE far-out games (board + horizon).
+   * Never delete historical graded snaps — dayDiff>=2 here previously wiped the 4040 archive.
+   */
   function pruneFarStartSnaps(snaps) {
     const farIds = new Set();
-    const nearIds = new Set();
     tradBoardGames().forEach((gameEl) => {
       const id = gameIdFromEl(gameEl);
       if (!id) return;
-      if (isGameStartWithinLeagueWindow(gameEl)) nearIds.add(id);
-      else farIds.add(id);
+      if (!isGameStartWithinLeagueWindow(gameEl)) farIds.add(id);
     });
     const horizon = Date.now() + BOOK_LEAGUE_MAX_START_AHEAD_MS;
     const now = Date.now();
@@ -4178,17 +4179,8 @@ ${bookPxCss}
       if (farIds.has(s.id)) return false;
       const startAt = Number(s.startAt);
       if (Number.isFinite(startAt)) {
-        if (startAt > horizon) return false;
-        const start = new Date(startAt);
-        const today = new Date();
-        const dayDiff =
-          (Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()) -
-            Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) /
-          86400000;
-        if (dayDiff >= 2) return false;
-      } else if (farIds.size && !nearIds.has(s.id)) {
-        // Legacy snap with no startAt: drop if this id is currently a far board game.
-        // (already handled by farIds above)
+        // Keep all past / in-progress history; only drop far-future tips.
+        if (startAt > now && startAt > horizon) return false;
       }
       return true;
     });
@@ -6857,7 +6849,14 @@ ${bookPxCss}
         const beforePrune = snaps.length;
         snaps = pruneFarStartSnaps(snaps);
         snaps = pruneRollingHourSnaps(snaps);
-        const pruned = beforePrune - snaps.length;
+        let pruned = beforePrune - snaps.length;
+
+        // Hard floor: never let prune shrink the archive below GitHub's copy.
+        if (remoteSnaps.length && snaps.length < remoteSnaps.length) {
+          snaps = mergeLeagueSnaps(snaps, remoteSnaps);
+          snaps = mergeLeagueSnaps(snaps, remoteSnaps);
+          pruned = Math.max(0, beforePrune - snaps.length);
+        }
 
         const due = board.filter((s) => isBoardSnapDue(s, snaps));
         if (due.length) snaps = mergeLeagueSnaps(snaps, due);
@@ -6881,12 +6880,15 @@ ${bookPxCss}
         const remoteDrift =
           leagueSnapSignature(snaps) !== leagueSnapSignature(remoteSnaps);
         const changed = !!due.length || !!graded || !!pruned || !!droppedPost || remoteDrift;
+        const wouldShrinkArchive =
+          remoteSnaps.length > 0 && snaps.length < Math.floor(remoteSnaps.length * 0.95);
         // Book League page: pull into GM only (force-push menu still allowed).
-        // 4codds board: push when merged set differs from GitHub.
+        // 4codds board: push when merged set differs — but never push a mass delete.
         const needGhWrite =
           (!IS_BOOK_LEAGUE_PAGE || forceGh) &&
           !localOnly &&
           token &&
+          !wouldShrinkArchive &&
           (forceGh ||
             !!due.length ||
             !!graded ||
@@ -7270,7 +7272,7 @@ ${bookPxCss}
           : DISPLAY_TDR_BL_ENDS
             ? '2 Best-line · today only'
             : 'hidden→Book League') +
-        ' · light-load paints · Take · OTC · Zcode · Book League ATS · v3.14.3)'
+        ' · light-load paints · Take · OTC · Zcode · Book League ATS · v3.14.4)'
     );
     try {
       window.__pinnyTakeBlDebug = describeTakeBookLeagueSource;
