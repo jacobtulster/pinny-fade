@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         4C Odds — TDRs only
 // @namespace    https://github.com/local/pinny-fade
-// @version      3.14.1
+// @version      3.14.2
 // @description  TDR badges on today's 2 Best-line books; Take = every game from quadratic BL×gap vote; agree% from margin; OTC; Open Zcode; hold glow; Best vs Pinny ¢; Take picks; Book League ATS/ML cover grades.
 // @author       You
 // @match        https://4codds.com/*
@@ -152,6 +152,8 @@
   let bookLeagueLockId = '';
   /** Cache: { updatedAt, bySport: { NFL: { rows, bestCode, worstCode, rankIndexByCode, nameByCode } } } */
   let blStandingsCache = { updatedAt: null, bySport: {} };
+  /** In-memory GitHub/Pages-backed snaps for Take (survives weak GM writes this session). */
+  let canonicalBookLeagueMem = null;
   const TAKE_MIN_BL_BOOKS = 1;
   /** Always paint a Take; agree% is the calibrated margin (never gates the side). */
   const TAKE_MIN_CONFIDENCE = 0;
@@ -2857,20 +2859,20 @@ ${bookPxCss}
   }
 
   /**
-   * Sport standings from local Book League (same pts formula as book-league.js).
+   * Sport standings from canonical Book League snaps (GitHub-backed GM cache).
    * Returns null if fewer than TAKE_MIN_BL_BOOKS graded books.
    */
   function aggregateBookLeagueStandings(sportKey) {
     if (!sportKey) return null;
-    const local = readLocalBookLeague();
-    const updatedAt = local.updatedAt || '';
+    const store = readCanonicalBookLeague();
+    const updatedAt = store.updatedAt || '';
     if (blStandingsCache.updatedAt !== updatedAt) {
       blStandingsCache = { updatedAt: updatedAt, bySport: {} };
     }
     if (blStandingsCache.bySport[sportKey]) return blStandingsCache.bySport[sportKey];
 
     const map = new Map();
-    (local.snaps || []).forEach((s) => {
+    (store.snaps || []).forEach((s) => {
       if (sportKeyFromSnap(s) !== sportKey) return;
       const won = blFavWonSnap(s);
       if (won == null) return;
@@ -5570,26 +5572,66 @@ ${bookPxCss}
         return {
           updatedAt: raw.updatedAt || null,
           snaps: Array.isArray(raw.snaps) ? raw.snaps : [],
+          source: raw.source || 'local',
         };
       }
     } catch (_) {}
     return { updatedAt: null, snaps: [] };
   }
 
+  /** Snaps used by Take + standings: never prefer a weaker ungraded local cache. */
+  function readCanonicalBookLeague() {
+    const local = readLocalBookLeague();
+    if (canonicalBookLeagueMem && Array.isArray(canonicalBookLeagueMem.snaps)) {
+      const memG = countGradedSnaps(canonicalBookLeagueMem.snaps);
+      const locG = countGradedSnaps(local.snaps);
+      if (memG > locG) return canonicalBookLeagueMem;
+      if (memG === locG && memG > 0) return canonicalBookLeagueMem;
+    }
+    return local;
+  }
+
+  function rememberCanonicalBookLeague(payload) {
+    if (!payload || !Array.isArray(payload.snaps)) return;
+    const next = {
+      updatedAt: payload.updatedAt || null,
+      snaps: payload.snaps,
+      source: payload.source || 'github',
+    };
+    const curG = canonicalBookLeagueMem
+      ? countGradedSnaps(canonicalBookLeagueMem.snaps)
+      : 0;
+    const nextG = countGradedSnaps(next.snaps);
+    if (!canonicalBookLeagueMem || nextG >= curG) {
+      canonicalBookLeagueMem = next;
+      blStandingsCache = { updatedAt: null, bySport: {} };
+    }
+  }
+
   function saveLocalBookLeague(payload) {
+    const prev = readLocalBookLeague();
+    let snaps = Array.isArray(payload && payload.snaps) ? payload.snaps : [];
+    const prevG = countGradedSnaps(prev.snaps);
+    const nextG = countGradedSnaps(snaps);
+    // Refuse to persist a downgrade of graded history (Take depends on this).
+    if (prevG > 0 && nextG < prevG) {
+      snaps = mergeLeagueSnaps(snaps, prev.snaps || []);
+      snaps = mergeLeagueSnaps(snaps, prev.snaps || []);
+    }
     const next = {
       updatedAt: (payload && payload.updatedAt) || new Date().toISOString(),
-      snaps: Array.isArray(payload && payload.snaps) ? payload.snaps : [],
-      source: 'local',
+      snaps: snaps,
+      source: (payload && payload.source) || 'local',
     };
     try {
       GM_setValue(BOOK_LEAGUE_LOCAL_KEY, next);
     } catch (_) {}
+    rememberCanonicalBookLeague(next);
     return next;
   }
 
   function downloadBookLeagueDataFile(payload) {
-    const src = payload || readLocalBookLeague() || { updatedAt: null, snaps: [] };
+    const src = payload || readCanonicalBookLeague() || { updatedAt: null, snaps: [] };
     const body = encodeBookLeagueFile({
       updatedAt: src.updatedAt || null,
       snaps: Array.isArray(src.snaps) ? src.snaps : [],
@@ -5609,23 +5651,32 @@ ${bookPxCss}
     }, 0);
   }
 
-  function publishBookLeagueToPage(payload) {
-    if (!IS_BOOK_LEAGUE_PAGE || !payload) return;
-    try {
-      let snaps = Array.isArray(payload.snaps) ? payload.snaps.slice() : [];
-      const cur = window.__BOOK_LEAGUE_DATA__;
-      if (cur && Array.isArray(cur.snaps) && countGradedSnaps(snaps) < countGradedSnaps(cur.snaps)) {
-        // Never paint a weaker local cache over a richer Pages/GitHub payload.
-        snaps = mergeLeagueSnaps(snaps, cur.snaps);
-      }
-      const data = {
-        updatedAt: payload.updatedAt || null,
-        snaps: snaps,
-        source: payload.source || 'local',
-      };
-      window.__BOOK_LEAGUE_DATA__ = data;
-      window.dispatchEvent(new CustomEvent('4c-book-league-data', { detail: data }));
-    } catch (_) {}
+  /** Book League Pages view is owned by book-league-data.js — never overwrite it from TM. */
+  function publishBookLeagueToPage(_payload) {
+    return;
+  }
+
+  async function fetchRawGithubBookLeague() {
+    const { repo, branch } = getGithubConfig();
+    const url =
+      'https://raw.githubusercontent.com/' +
+      (repo || DEFAULT_GH_REPO) +
+      '/' +
+      encodeURIComponent(branch || 'main') +
+      '/' +
+      BOOK_LEAGUE_PATH +
+      '?t=' +
+      Date.now();
+    const res = await gmRequest({
+      method: 'GET',
+      url: url,
+      headers: { Accept: 'text/plain,*/*' },
+      timeout: 120000,
+    });
+    if (res.status < 200 || res.status >= 300) {
+      throw new Error('raw GitHub ' + res.status);
+    }
+    return parseBookLeagueFile(String(res.responseText || ''));
   }
 
   function utf8ToBase64(str) {
@@ -6722,23 +6773,36 @@ ${bookPxCss}
             remote = await githubGetBookLeague();
             localOnly = false;
           } catch (e) {
-            // Keep going locally if GitHub is down / token bad.
-            localOnly = true;
-            if (attempt === 0) {
-              setBookLeagueStatus(
-                'GitHub unavailable — local only (' + ((e && e.message) || 'error') + ')',
-                true
-              );
+            // Token path failed — still try public raw before local-only.
+            try {
+              remote = { sha: null, payload: await fetchRawGithubBookLeague() };
+              localOnly = false;
+            } catch (_) {
+              localOnly = true;
+              if (attempt === 0) {
+                setBookLeagueStatus(
+                  'GitHub unavailable — local only (' + ((e && e.message) || 'error') + ')',
+                  true
+                );
+              }
             }
+          }
+        } else {
+          try {
+            remote = { sha: null, payload: await fetchRawGithubBookLeague() };
+            localOnly = true; // can read, cannot write
+          } catch (_) {
+            localOnly = true;
           }
         }
 
         const remoteSnaps = (remote.payload && remote.payload.snaps) || [];
         lastRemoteCount = remoteSnaps.length;
-        // Remote/file grades win over stale local: merge local onto remote, then remote again.
+        if (remoteSnaps.length) rememberCanonicalBookLeague(remote.payload);
+        // Remote grades win over stale local: merge local onto remote, then remote again.
         let snaps = mergeLeagueSnaps(remoteSnaps, local.snaps || []);
         snaps = mergeLeagueSnaps(snaps, remoteSnaps);
-        // On Book League page, also fold in whatever the HTML file already loaded.
+        // On Book League page, fold Pages file into GM cache only (never paint over the page).
         if (IS_BOOK_LEAGUE_PAGE && window.__BOOK_LEAGUE_DATA__ && Array.isArray(window.__BOOK_LEAGUE_DATA__.snaps)) {
           snaps = mergeLeagueSnaps(snaps, window.__BOOK_LEAGUE_DATA__.snaps);
         }
@@ -6754,19 +6818,25 @@ ${bookPxCss}
         const graded = IS_4C || IS_BOOK_LEAGUE_PAGE ? await gradeSnapsWithEspn(snaps) : 0;
         touchBookLeagueLock(lockId);
         const droppedPost = beforeGrade - snaps.length;
-        const payload = { updatedAt: new Date().toISOString(), snaps: snaps };
+        const payload = {
+          updatedAt: new Date().toISOString(),
+          snaps: snaps,
+          source: remoteSnaps.length ? 'github' : 'local',
+        };
         lastDue = due.length;
         lastGraded = graded;
         lastTotal = snaps.length;
 
         saveLocalBookLeague(payload);
-        publishBookLeagueToPage(Object.assign({}, payload, { source: wroteGh ? 'github' : 'local' }));
+        // Book League HTML keeps Pages file as the live view — do not publish over it.
 
         const remoteDrift =
           leagueSnapSignature(snaps) !== leagueSnapSignature(remoteSnaps);
         const changed = !!due.length || !!graded || !!pruned || !!droppedPost || remoteDrift;
-        // Always push when merged set differs from GitHub — local TM is not the source of truth.
+        // Book League page: pull into GM only (force-push menu still allowed).
+        // 4codds board: push when merged set differs from GitHub.
         const needGhWrite =
+          (!IS_BOOK_LEAGUE_PAGE || forceGh) &&
           !localOnly &&
           token &&
           (forceGh ||
@@ -6838,7 +6908,7 @@ ${bookPxCss}
               ')'
           );
           wroteGh = true;
-          publishBookLeagueToPage(Object.assign({}, payload, { source: 'github' }));
+          rememberCanonicalBookLeague(Object.assign({}, payload, { source: 'github' }));
           break;
         } catch (e) {
           if (e && e.code === 'GH_CONFLICT' && attempt < 4) {
@@ -6871,6 +6941,7 @@ ${bookPxCss}
         );
         log('Book League synced', '+', lastDue, 'total', lastTotal);
       }
+      if (IS_4C && TAKE_REC_PANEL_ENABLED) scheduleTakeRecRefresh(200);
     } catch (e) {
       setBookLeagueStatus((e && e.message) || 'Sync failed', true);
       log('Book League sync error', e);
@@ -7148,50 +7219,47 @@ ${bookPxCss}
           : DISPLAY_TDR_BL_ENDS
             ? '2 Best-line · today only'
             : 'hidden→Book League') +
-        ' · light-load paints · Take · OTC · Zcode · Book League ATS · v3.14.0)'
+        ' · light-load paints · Take · OTC · Zcode · Book League ATS · v3.14.2)'
     );
   }
 
   function bootBookLeaguePage() {
-    const local = readLocalBookLeague();
+    // Do not touch window.__BOOK_LEAGUE_DATA__ — Pages file is the view.
+    // Only refresh GM cache from GitHub/Pages in the background for Take on 4codds.
     const fileData =
       window.__BOOK_LEAGUE_DATA__ && typeof window.__BOOK_LEAGUE_DATA__ === 'object'
         ? window.__BOOK_LEAGUE_DATA__
         : null;
-    const localSnaps = (local && local.snaps) || [];
-    const fileSnaps = (fileData && fileData.snaps) || [];
-    // Pages file holds historical ATS grades; re-merge it last so TM cache cannot wipe them.
-    let snaps = mergeLeagueSnaps(fileSnaps, localSnaps);
-    snaps = mergeLeagueSnaps(snaps, fileSnaps);
-    const payload = {
-      updatedAt:
-        countGradedSnaps(fileSnaps) >= countGradedSnaps(localSnaps)
-          ? (fileData && fileData.updatedAt) || new Date().toISOString()
-          : (local && local.updatedAt) || new Date().toISOString(),
-      snaps: snaps,
-      source: 'merged',
-    };
-    saveLocalBookLeague(payload);
-    publishBookLeagueToPage(payload);
+    if (fileData && Array.isArray(fileData.snaps)) {
+      rememberCanonicalBookLeague(fileData);
+      const local = readLocalBookLeague();
+      let snaps = mergeLeagueSnaps(fileData.snaps, local.snaps || []);
+      snaps = mergeLeagueSnaps(snaps, fileData.snaps);
+      saveLocalBookLeague({
+        updatedAt: fileData.updatedAt || new Date().toISOString(),
+        snaps: snaps,
+        source: 'pages',
+      });
+    }
     try {
       if (typeof GM_registerMenuCommand === 'function') {
         GM_registerMenuCommand('Book League: Set GitHub token', promptGithubToken);
-        GM_registerMenuCommand('Book League: Sync now', () => scheduleBookLeagueSync(0));
+        GM_registerMenuCommand('Book League: Sync GM cache from GitHub', () =>
+          scheduleBookLeagueSync(0)
+        );
         GM_registerMenuCommand('Book League: Force push to GitHub', () => {
           syncBookLeagueNow({ forceGh: true });
         });
         GM_registerMenuCommand('Book League: Download data.js', () => {
-          downloadBookLeagueDataFile(readLocalBookLeague());
+          downloadBookLeagueDataFile(readCanonicalBookLeague());
         });
       }
     } catch (_) {}
     log(
-      'Book League page hydrated (pre-GitHub)',
-      snaps.length,
-      'graded',
-      countGradedSnaps(snaps)
+      'Book League page: view left to Pages file; GM cache graded',
+      countGradedSnaps(readCanonicalBookLeague().snaps)
     );
-    scheduleBookLeagueSync(300);
+    scheduleBookLeagueSync(500);
   }
 
   function boot() {
