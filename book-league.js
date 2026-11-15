@@ -97,19 +97,96 @@
     return favWon ? -base : base;
   }
 
-  function isGraded(s) {
-    return s && s.winnerTeamIdx != null && s.winnerTeamIdx !== '';
+  function isMoneylineMarket(s) {
+    return /money\s*line|^ml$/i.test(String((s && s.market) || ''));
   }
 
+  function favTeamIndex(s) {
+    const teams = Array.isArray(s && s.teams) ? s.teams : [];
+    if (s && s.favTeam) {
+      const i = teams.findIndex((t) => t === s.favTeam);
+      if (i === 0 || i === 1) return i;
+    }
+    if (s && (s.favSide === 0 || s.favSide === 1)) return s.favSide;
+    return null;
+  }
+
+  function snapSpread(s) {
+    const n = Number(s && s.spread);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  /** ATS (spread) or ML result for the favorite. Push / draw → void. */
+  function computeCoverResult(s, score0, score1) {
+    const favIdx = favTeamIndex(s);
+    if (favIdx == null || !Number.isFinite(score0) || !Number.isFinite(score1)) return null;
+    const dogIdx = favIdx === 0 ? 1 : 0;
+    const favScore = favIdx === 0 ? score0 : score1;
+    const dogScore = dogIdx === 0 ? score0 : score1;
+    const margin = favScore - dogScore;
+    if (isMoneylineMarket(s)) {
+      if (margin === 0) {
+        return { coverTeamIdx: 'void', gradeKind: 'ml', favCovered: null };
+      }
+      return {
+        coverTeamIdx: margin > 0 ? favIdx : dogIdx,
+        gradeKind: 'ml',
+        favCovered: margin > 0,
+      };
+    }
+    const spread = snapSpread(s);
+    if (spread == null) {
+      // Legacy snaps with no consensus line — do not pretend outright = ATS.
+      return null;
+    }
+    const ats = margin + spread;
+    if (Math.abs(ats) < 1e-9) {
+      return { coverTeamIdx: 'void', gradeKind: 'ats', favCovered: null };
+    }
+    return {
+      coverTeamIdx: ats > 0 ? favIdx : dogIdx,
+      gradeKind: 'ats',
+      favCovered: ats > 0,
+    };
+  }
+
+  function teamScoresForOrient(awayScore, homeScore, orient) {
+    if (orient === 'ha') return { score0: homeScore, score1: awayScore };
+    return { score0: awayScore, score1: homeScore };
+  }
+
+  function applyCoverGrade(s, awayScore, homeScore, orient) {
+    const mapped = teamScoresForOrient(awayScore, homeScore, orient);
+    const cover = computeCoverResult(s, mapped.score0, mapped.score1);
+    if (!cover) return false;
+    s.coverTeamIdx = cover.coverTeamIdx;
+    s.gradeKind = cover.gradeKind;
+    s.favCovered = cover.favCovered;
+    return true;
+  }
+
+  /** Graded for league points = has an ATS/ML cover result (incl. push void). */
+  function isGraded(s) {
+    if (!s) return false;
+    if (s.coverTeamIdx != null && s.coverTeamIdx !== '') return true;
+    // Legacy outright-only snaps: keep visible as graded scores, but not for ATS pts.
+    return false;
+  }
+
+  function hasFinalScores(s) {
+    return s && s.awayScore != null && s.homeScore != null;
+  }
+
+  /** true = fav covered (ATS) / won ML; false = dog; null = push/ungraded. */
   function favWonSnap(s) {
-    if (!isGraded(s) || s.winnerTeamIdx === 'void') return null;
-    const teams = Array.isArray(s.teams) ? s.teams : [];
-    const favTeam = s.favTeam;
-    const winnerIdx = Number(s.winnerTeamIdx);
-    if (!Number.isFinite(winnerIdx) || winnerIdx < 0 || winnerIdx > 1) return null;
-    const winnerName = teams[winnerIdx];
-    if (favTeam && winnerName) return winnerName === favTeam;
-    if (s.favSide === 0 || s.favSide === 1) return winnerIdx === s.favSide;
+    if (!s) return null;
+    if (s.coverTeamIdx === 'void') return null;
+    if (s.favCovered === true || s.favCovered === false) return s.favCovered;
+    if (s.coverTeamIdx === 0 || s.coverTeamIdx === 1) {
+      const favIdx = favTeamIndex(s);
+      if (favIdx == null) return null;
+      return Number(s.coverTeamIdx) === favIdx;
+    }
     return null;
   }
 
@@ -421,19 +498,40 @@
   }
 
   function gradeLabel(s) {
-    if (s.winnerTeamIdx === 'void') {
-      return '<span class="bl-grade pending">void / tie</span>';
+    if (s.coverTeamIdx === 'void') {
+      const kind = s.gradeKind === 'ml' ? 'ML draw' : 'ATS push';
+      return '<span class="bl-grade pending">' + kind + '</span>';
     }
     const won = favWonSnap(s);
     if (won == null) {
+      if (hasFinalScores(s) && !isMoneylineMarket(s) && snapSpread(s) == null) {
+        return '<span class="bl-grade pending">no line (legacy)</span>';
+      }
       if (s.status && !isGraded(s)) {
         return '<span class="bl-grade live">' + escapeHtml(s.status) + '</span>';
       }
       return '<span class="bl-grade pending">pending</span>';
     }
+    const kind = s.gradeKind === 'ml' || isMoneylineMarket(s) ? 'ML' : 'ATS';
     return (
-      '<span class="bl-grade ok">' + (won ? 'fav won' : 'fav lost') + '</span>'
+      '<span class="bl-grade ok">' +
+      (won ? kind + ' fav covered' : kind + ' dog covered') +
+      '</span>'
     );
+  }
+
+  function lineCell(s) {
+    const sp = snapSpread(s);
+    if (sp != null) {
+      const sign = sp > 0 ? '+' : '';
+      return (
+        '<span class="bl-best" title="Consensus fav spread at snap">' +
+        escapeHtml((s.favTeam || 'Fav') + ' ' + sign + sp) +
+        '</span>'
+      );
+    }
+    if (isMoneylineMarket(s)) return '<span class="bl-best">ML</span>';
+    return '—';
   }
 
   function detailHtml(s) {
@@ -485,7 +583,7 @@
     const rows = filtered();
     if (!rows.length) {
       snapBody.innerHTML =
-        '<tr class="empty"><td colspan="10">' +
+        '<tr class="empty"><td colspan="11">' +
         (snaps.length
           ? 'No snaps match this filter.'
           : 'No snaps yet — open 4codds with the userscript.') +
@@ -533,6 +631,9 @@
           openCell(s) +
           '</td>' +
           '<td>' +
+          lineCell(s) +
+          '</td>' +
+          '<td>' +
           scoreCell(s) +
           '</td>' +
           '<td>' +
@@ -544,7 +645,7 @@
         html.push(
           '<tr class="bl-detail" data-detail="' +
             escapeHtml(k) +
-            '"><td colspan="10">' +
+            '"><td colspan="11">' +
             detailHtml(s) +
             '</td></tr>'
         );
@@ -957,45 +1058,54 @@
       if (isEspnPostponedStatus(ev.status)) s._blDrop = true;
       return dirty;
     }
-    if (isGraded(s)) {
-      if (s.awayScore !== ev.awayScore || s.homeScore !== ev.homeScore) {
-        s.awayScore = ev.awayScore;
-        s.homeScore = ev.homeScore;
-        dirty = true;
-      }
-      return dirty;
-    }
     if (ev.awayScore == null || ev.homeScore == null) return dirty;
     const teams = s.teams || [];
     const a = normTeam(teams[0]);
     const h = normTeam(teams[1]);
-    if (ev.awayScore === ev.homeScore) {
-      s.winnerTeamIdx = 'void';
-      s.gradedAt = Date.now();
-      s.awayScore = ev.awayScore;
-      s.homeScore = ev.homeScore;
-      return true;
-    }
-    const awayWon = ev.awayScore > ev.homeScore;
-    let winnerTeamIdx = null;
+    let orient = null;
     if (
       sideMatch(a, ev.awayCanon, ev.awayAbbr, ev.awayShort) &&
       sideMatch(h, ev.homeCanon, ev.homeAbbr, ev.homeShort)
     ) {
-      winnerTeamIdx = awayWon ? 0 : 1;
+      orient = 'ah';
     } else if (
       sideMatch(a, ev.homeCanon, ev.homeAbbr, ev.homeShort) &&
       sideMatch(h, ev.awayCanon, ev.awayAbbr, ev.awayShort)
     ) {
-      winnerTeamIdx = awayWon ? 1 : 0;
+      orient = 'ha';
     } else {
       return dirty;
     }
-    s.winnerTeamIdx = winnerTeamIdx;
-    s.gradedAt = Date.now();
-    s.awayScore = ev.awayScore;
-    s.homeScore = ev.homeScore;
-    return true;
+
+    if (s.awayScore !== ev.awayScore || s.homeScore !== ev.homeScore) {
+      s.awayScore = ev.awayScore;
+      s.homeScore = ev.homeScore;
+      dirty = true;
+    }
+
+    // Outright winner (metadata). Draws → void.
+    if (ev.awayScore === ev.homeScore) {
+      if (s.winnerTeamIdx !== 'void') {
+        s.winnerTeamIdx = 'void';
+        dirty = true;
+      }
+    } else {
+      const awayWon = ev.awayScore > ev.homeScore;
+      const outright = orient === 'ah' ? (awayWon ? 0 : 1) : awayWon ? 1 : 0;
+      if (s.winnerTeamIdx !== outright) {
+        s.winnerTeamIdx = outright;
+        dirty = true;
+      }
+    }
+
+    // ATS / ML cover grade (league points).
+    if (!isGraded(s) || dirty) {
+      if (applyCoverGrade(s, ev.awayScore, ev.homeScore, orient)) {
+        s.gradedAt = Date.now();
+        dirty = true;
+      }
+    }
+    return dirty;
   }
 
   function sideMatch(snapSide, canon, abbr, shortName) {
@@ -1054,8 +1164,21 @@
     return null;
   }
 
+  function needsEspnPoll(s) {
+    if (!s || isGraded(s)) return false;
+    // Legacy spread snaps with final scores but no stored line can never ATS-grade.
+    if (
+      hasFinalScores(s) &&
+      !isMoneylineMarket(s) &&
+      snapSpread(s) == null
+    ) {
+      return false;
+    }
+    return true;
+  }
+
   async function pollEspn() {
-    const need = snaps.filter((s) => s && !isGraded(s));
+    const need = snaps.filter(needsEspnPoll);
     if (!need.length) return;
     let changed = false;
     for (let i = 0; i < need.length; i++) {

@@ -143,7 +143,7 @@
       <div class="brand">
         <h1>Book League</h1>
         <p class="tagline">
-          Local Tampermonkey + GitHub Pages · fav TDR points · 1 snap / game / market / rolling hour · ESPN finals
+          Local Tampermonkey + GitHub Pages · fav TDR points vs ATS/ML cover · 1 snap / game / market / rolling hour · ESPN finals
         </p>
       </div>
       <div class="controls">
@@ -163,7 +163,8 @@
     <section class="legend">
       <div class="legend-left">
         <span class="hint">
-          Scoring: mid = ceil(Y/2). Fav loses → mid − favRank. Fav wins → flip. J3 = 3.
+          Scoring: mid = ceil(Y/2). Fav fails to cover (ATS) / loses ML → mid − favRank. Fav covers → flip. J3 = 3.
+          Spread snaps store consensus fav line and grade ATS (push = 0). Moneyline grades ML. Legacy snaps with no line are skipped for points.
           Userscript always saves locally (TM); GitHub token also publishes to Pages.
           For a fresh local file copy: TM menu → Book League: Download data.js → replace book-league/book-league-data.js.
         </span>
@@ -172,7 +173,7 @@
 
     <section class="bl-section">
       <h2>League standings</h2>
-      <p class="bl-sub">Rankings per sport, or ALL combined. Correct = +pts that game; Wrong = −pts; mid rank = 0.</p>
+      <p class="bl-sub">Rankings per sport, or ALL combined. Correct = +pts when that book’s fav-rank lean matches ATS/ML cover; Wrong = −pts; mid rank = 0. Push excluded.</p>
       <div class="bl-filters" id="sportFilters" role="tablist" aria-label="Sport rankings"></div>
       <div class="table-wrap">
         <table class="slate bl-standings" id="standingsTable">
@@ -213,12 +214,13 @@
               <th>Best fav</th>
               <th>Best dog</th>
               <th>Pinny open</th>
+              <th>Line</th>
               <th>Score</th>
               <th>Grade</th>
             </tr>
           </thead>
           <tbody id="snapBody">
-            <tr class="empty"><td colspan="10">No snaps yet — open 4codds with the userscript.</td></tr>
+            <tr class="empty"><td colspan="11">No snaps yet — open 4codds with the userscript.</td></tr>
           </tbody>
         </table>
       </div>

@@ -57,9 +57,9 @@ Chrome/Edge blocks Tampermonkey on local files unless **Allow access to file URL
 
 ## 4C Odds TDRs + Book League
 
-Optional Tampermonkey script: [`userscript/4codds-consensus.user.js`](userscript/4codds-consensus.user.js) (**v3.5.0+**). On [4codds.com](https://4codds.com/) it paints board TDRs, My Line Take, OTC lean, and ZCode public ratios, and auto-commits Book League snaps to GitHub.
+Optional Tampermonkey script: [`userscript/4codds-consensus.user.js`](userscript/4codds-consensus.user.js) (**v3.11.0+**). On [4codds.com](https://4codds.com/) it paints board TDRs, My Line Take, OTC lean, and ZCode public ratios, and auto-commits Book League snaps to GitHub.
 
-**Book League auto-sync:** keep [`userscript/4codds-consensus.user.js`](userscript/4codds-consensus.user.js) on 4codds (and optionally [`userscript/pinny-fade-mlb.user.js`](userscript/pinny-fade-mlb.user.js) for the shared PAT). Eligible games (Y≥12) land in [`book-league/book-league-data.js`](book-league/book-league-data.js) — max **one snap per game / market / UTC hour**. Durable store is GitHub only. Public page: [Book League](https://jacobtulster.github.io/pinny-fade/book-league.html).
+**Book League auto-sync:** keep [`userscript/4codds-consensus.user.js`](userscript/4codds-consensus.user.js) on 4codds (and optionally [`userscript/pinny-fade-mlb.user.js`](userscript/pinny-fade-mlb.user.js) for the shared PAT). Eligible games (Y≥8) land in [`book-league/book-league-data.js`](book-league/book-league-data.js) — max **one snap per game / market / rolling hour**. Snaps store consensus fav spread (or ML) and grade **ATS/ML cover** (not outright). Legacy snaps with no line are skipped for points. Durable store is GitHub only. Public page: [Book League](https://jacobtulster.github.io/pinny-fade/book-league.html).
 
 ## Notes
 
