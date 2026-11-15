@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         4C Odds — TDRs only
 // @namespace    https://github.com/local/pinny-fade
-// @version      3.14.0
+// @version      3.14.1
 // @description  TDR badges on today's 2 Best-line books; Take = every game from quadratic BL×gap vote; agree% from margin; OTC; Open Zcode; hold glow; Best vs Pinny ¢; Take picks; Book League ATS/ML cover grades.
 // @author       You
 // @match        https://4codds.com/*
@@ -5612,9 +5612,15 @@ ${bookPxCss}
   function publishBookLeagueToPage(payload) {
     if (!IS_BOOK_LEAGUE_PAGE || !payload) return;
     try {
+      let snaps = Array.isArray(payload.snaps) ? payload.snaps.slice() : [];
+      const cur = window.__BOOK_LEAGUE_DATA__;
+      if (cur && Array.isArray(cur.snaps) && countGradedSnaps(snaps) < countGradedSnaps(cur.snaps)) {
+        // Never paint a weaker local cache over a richer Pages/GitHub payload.
+        snaps = mergeLeagueSnaps(snaps, cur.snaps);
+      }
       const data = {
         updatedAt: payload.updatedAt || null,
-        snaps: Array.isArray(payload.snaps) ? payload.snaps.slice() : [],
+        snaps: snaps,
         source: payload.source || 'local',
       };
       window.__BOOK_LEAGUE_DATA__ = data;
@@ -5878,6 +5884,51 @@ ${bookPxCss}
     return { content: { sha: blob.sha }, commit: commit };
   }
 
+  function countGradedSnaps(snaps) {
+    let n = 0;
+    (snaps || []).forEach((s) => {
+      if (blSnapIsGraded(s)) n++;
+    });
+    return n;
+  }
+
+  /** Prefer whichever side has cover/spread/scores; never let ungraded local wipe graded file/GitHub. */
+  function mergeSnapPair(prev, next) {
+    if (!prev) return next;
+    if (!next) return prev;
+    const prevGraded = blSnapIsGraded(prev);
+    const nextGraded = blSnapIsGraded(next);
+    const newer = (Number(next.at) || 0) >= (Number(prev.at) || 0) ? next : prev;
+    const older = newer === next ? prev : next;
+    const gradedSrc = nextGraded ? next : prevGraded ? prev : null;
+    const spreadSrc =
+      newer.spread != null
+        ? newer
+        : older.spread != null
+          ? older
+          : null;
+    const base = Object.assign({}, older, newer);
+    if (gradedSrc) {
+      base.coverTeamIdx = gradedSrc.coverTeamIdx;
+      base.gradeKind = gradedSrc.gradeKind;
+      base.favCovered = gradedSrc.favCovered;
+      base.gradedAt = gradedSrc.gradedAt;
+      if (gradedSrc.winnerTeamIdx != null) base.winnerTeamIdx = gradedSrc.winnerTeamIdx;
+    } else if (prev.winnerTeamIdx != null && base.winnerTeamIdx == null) {
+      base.winnerTeamIdx = prev.winnerTeamIdx;
+    }
+    if (spreadSrc) {
+      base.spread = spreadSrc.spread;
+      if (spreadSrc.awayLine != null) base.awayLine = spreadSrc.awayLine;
+      if (spreadSrc.homeLine != null) base.homeLine = spreadSrc.homeLine;
+    }
+    if (base.awayScore == null && older.awayScore != null) base.awayScore = older.awayScore;
+    if (base.homeScore == null && older.homeScore != null) base.homeScore = older.homeScore;
+    if (!base.status && older.status) base.status = older.status;
+    if (!base.open && older.open) base.open = older.open;
+    return base;
+  }
+
   function mergeLeagueSnaps(existing, incoming) {
     const byKey = new Map();
     (existing || []).forEach((s) => {
@@ -5886,41 +5937,31 @@ ${bookPxCss}
     (incoming || []).forEach((s) => {
       if (!s || !s.id) return;
       const k = snapStoreKey(s);
-      const prev = byKey.get(k);
-      if (!prev) {
-        byKey.set(k, s);
-        return;
-      }
-      const prevGraded = blSnapIsGraded(prev);
-      const nextGraded = blSnapIsGraded(s);
-      if (prevGraded && !nextGraded) {
-        byKey.set(
-          k,
-          Object.assign({}, s, {
-            winnerTeamIdx: prev.winnerTeamIdx,
-            coverTeamIdx: prev.coverTeamIdx,
-            gradeKind: prev.gradeKind,
-            favCovered: prev.favCovered,
-            gradedAt: prev.gradedAt,
-            awayScore: prev.awayScore,
-            homeScore: prev.homeScore,
-            status: prev.status || s.status,
-            open: s.open || prev.open,
-            spread: s.spread != null ? s.spread : prev.spread,
-            awayLine: s.awayLine != null ? s.awayLine : prev.awayLine,
-            homeLine: s.homeLine != null ? s.homeLine : prev.homeLine,
-          })
-        );
-        return;
-      }
-      if (nextGraded || (Number(s.at) || 0) >= (Number(prev.at) || 0)) {
-        if (!nextGraded && prev) {
-          if (s.spread == null && prev.spread != null) s.spread = prev.spread;
-          if (s.awayLine == null && prev.awayLine != null) s.awayLine = prev.awayLine;
-          if (s.homeLine == null && prev.homeLine != null) s.homeLine = prev.homeLine;
-        }
-        byKey.set(k, s);
-      }
+      byKey.set(k, mergeSnapPair(byKey.get(k), s));
+    });
+    // Same game/market can exist under different `at` keys; keep the graded copy when prune drops one.
+    const groups = new Map();
+    byKey.forEach((s) => {
+      const gk = gameMarketKey(s);
+      if (!groups.has(gk)) groups.set(gk, []);
+      groups.get(gk).push(s);
+    });
+    groups.forEach((list) => {
+      if (list.length < 2) return;
+      const best = list.reduce((a, b) => {
+        const ag = blSnapIsGraded(a);
+        const bg = blSnapIsGraded(b);
+        if (ag !== bg) return ag ? a : b;
+        const as = a.spread != null;
+        const bs = b.spread != null;
+        if (as !== bs) return as ? a : b;
+        return (Number(a.at) || 0) >= (Number(b.at) || 0) ? a : b;
+      });
+      list.forEach((s) => {
+        if (s === best) return;
+        const k = snapStoreKey(s);
+        byKey.set(k, mergeSnapPair(s, best));
+      });
     });
     return pruneRollingHourSnaps(Array.from(byKey.values()));
   }
@@ -6694,7 +6735,9 @@ ${bookPxCss}
 
         const remoteSnaps = (remote.payload && remote.payload.snaps) || [];
         lastRemoteCount = remoteSnaps.length;
-        let snaps = mergeLeagueSnaps(local.snaps || [], remoteSnaps);
+        // Remote/file grades win over stale local: merge local onto remote, then remote again.
+        let snaps = mergeLeagueSnaps(remoteSnaps, local.snaps || []);
+        snaps = mergeLeagueSnaps(snaps, remoteSnaps);
         // On Book League page, also fold in whatever the HTML file already loaded.
         if (IS_BOOK_LEAGUE_PAGE && window.__BOOK_LEAGUE_DATA__ && Array.isArray(window.__BOOK_LEAGUE_DATA__.snaps)) {
           snaps = mergeLeagueSnaps(snaps, window.__BOOK_LEAGUE_DATA__.snaps);
@@ -7115,13 +7158,16 @@ ${bookPxCss}
       window.__BOOK_LEAGUE_DATA__ && typeof window.__BOOK_LEAGUE_DATA__ === 'object'
         ? window.__BOOK_LEAGUE_DATA__
         : null;
-    // Merge local TM + Pages file immediately, then reconcile with GitHub (global store).
-    let snaps = mergeLeagueSnaps(
-      (local && local.snaps) || [],
-      (fileData && fileData.snaps) || []
-    );
+    const localSnaps = (local && local.snaps) || [];
+    const fileSnaps = (fileData && fileData.snaps) || [];
+    // Pages file holds historical ATS grades; re-merge it last so TM cache cannot wipe them.
+    let snaps = mergeLeagueSnaps(fileSnaps, localSnaps);
+    snaps = mergeLeagueSnaps(snaps, fileSnaps);
     const payload = {
-      updatedAt: new Date().toISOString(),
+      updatedAt:
+        countGradedSnaps(fileSnaps) >= countGradedSnaps(localSnaps)
+          ? (fileData && fileData.updatedAt) || new Date().toISOString()
+          : (local && local.updatedAt) || new Date().toISOString(),
       snaps: snaps,
       source: 'merged',
     };
@@ -7139,7 +7185,12 @@ ${bookPxCss}
         });
       }
     } catch (_) {}
-    log('Book League page hydrated (pre-GitHub)', snaps.length);
+    log(
+      'Book League page hydrated (pre-GitHub)',
+      snaps.length,
+      'graded',
+      countGradedSnaps(snaps)
+    );
     scheduleBookLeagueSync(300);
   }
 
